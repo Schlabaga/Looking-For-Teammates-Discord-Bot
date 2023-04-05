@@ -287,7 +287,7 @@ async def setmain(interaction: discord.Interaction, main: discord.app_commands.C
     userInstance = UserDbSetup(user=interaction.user)
     userInstance.Update("main", main.value)
 
-    await interaction.response.send_message(f"Ton main est maintenant {main.name}!", ephemeral=True)
+    await interaction.response.send_message(f"Ton main est maintenant `{main.name}`!", ephemeral=True)
 
 
 
@@ -299,7 +299,7 @@ async def resolvedb(interaction:discord.Interaction):
 
     serverClass = ServerDBSetup(server=interaction.guild)
     result = serverClass.resolveDatabase()
-    await interaction.response.send_message(f"La db de {interaction.guild.name} a bien été résolue.", ephemeral=True)
+    await interaction.response.send_message(f"La db de `{interaction.guild.name}` a bien été résolue.", ephemeral=True)
     
 
 
@@ -312,7 +312,7 @@ async def resolvedb(interaction:discord.Interaction, cible: discord.Member = Non
     utilisateur = GetMainUser(interaction.user, cibleUser=cible)
     userClass = UserDbSetup(user=utilisateur)
     result = userClass.resolveDatabase()
-    await interaction.response.send_message(f"La db de {utilisateur.mention} a bien été résolue.", ephemeral=True)
+    await interaction.response.send_message(f"La db de `{utilisateur.mention}` a bien été résolue.", ephemeral=True)
     
 
 
@@ -322,12 +322,10 @@ async def resolvedb(interaction:discord.Interaction, cible: discord.Member = Non
 async def teamlist(interaction: discord.Interaction):
 
     guild = interaction.guild
-    teamInstance = Team(user=None, teamTag=None)
+    teamInstance = Team(user=None, teamTag=None, server=interaction.guild)
     teamListEmbed = discord.Embed(title=f"Liste des teams", description= teamInstance.TeamList())
     teamListEmbed.set_footer(text=guild.name, icon_url=guild.icon)
     await interaction.response.send_message(embed= teamListEmbed)
-
-
 
 
 
@@ -339,8 +337,8 @@ async def myteam(interaction: discord.Interaction):
     team = userInstance.MyTeam(server=interaction.guild)
     responseEmbed = discord.Embed(title=team[0], description=team[1], timestamp=datetime.datetime.now())
     responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
+
     await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
-    
 
 
 
@@ -409,9 +407,8 @@ async def deleteteam(interaction: discord.Interaction):
     userInstance =UserDbSetup(user=interaction.user)
 
     if userInstance.isTeamOwner():
-
         teamTag= userInstance.getTeamTag()
-        await interaction.response.send_message(view=deleteTeamConfirmation(teamTag=teamTag, server=interaction.guild))
+        await interaction.response.send_message(view=deleteTeamConfirmation(teamTag=teamTag, server=interaction.guild, teamOwner=interaction.user))
 
     else:
         await interaction.response.send_message("Tu n'es pas owner d'une quelconque team, tu ne peux donc pas en supprimer une!", ephemeral=True)

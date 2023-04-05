@@ -88,7 +88,7 @@ class decisionTeamMember(discord.ui.View):
         self.teamTag = teamTag
         self.memberUser = memberUser
         self.server = memberUser.guild
-        self.NotifChannel = NotifChannel
+        self.NotifChannel = self.server.get_channel(NotifChannel)
 
     @discord.ui.button(label="Accepter", style=discord.ButtonStyle.green, emoji=validEmoji)
     async def on_accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -97,17 +97,19 @@ class decisionTeamMember(discord.ui.View):
             await interaction.response.send_message("Tu n'es pas concerné(e) par cette invitation, désolé!", ephemeral=True)
             return
 
-        teamInstance = Team(user=interaction.user, teamTag=self.teamTag)
+        teamInstance = Team(user=interaction.user, teamTag=self.teamTag, server=self.server)
 
         self.children[0].disabled = True
         self.children[1].disabled = True
 
         await interaction.message.edit(view=self)
+        await teamInstance.memberJoinTeam()
 
-        teamInstance.memberJoinTeam()
-        teamInstance.addTeamTagNickname()
-        embed = discord.Embed(title="Bravo!", description=f"{interaction.user.mention} a accepté l'invitation de la team {self.teamTag} et en fait maintenant partie!")
-        message = await interaction.response.send_message(embed=embed)
+        embed = discord.Embed(title="Bravo!", description=f"{interaction.user.mention} a accepté l'invitation de la team {self.teamTag} et en fait maintenant partie!", timestamp=dt.datetime.now())
+
+        message = await interaction.response.send_message(f"Bravo, tu fais maintenant partie de la team {self.teamTag}!", ephemeral=True)
+        messageNotif = await self.NotifChannel.send(embed=embed)
+
 
 
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
@@ -126,8 +128,10 @@ class decisionTeamMember(discord.ui.View):
 
         embed = discord.Embed(title="Oups, desolé... :/", description=f"La demande d'intégration de la team {self.teamTag} a été refusée par {interaction.user.mention}!")
         embed.set_footer(icon_url=guild.icon, text=guild.name)
-
+        
         await interaction.response.send_message(embed=embed)
+
+
 
 
 
@@ -138,6 +142,7 @@ class deleteTeamConfirmation(discord.ui.View):
         self.teamTag = teamTag
         self.server = server
         self.teamOwner = teamOwner
+
 
     @discord.ui.button(label="Oui, je suis sûr(e)!", style=discord.ButtonStyle.green, emoji=validEmoji)
     async def on_accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -165,6 +170,7 @@ class deleteTeamConfirmation(discord.ui.View):
         message = await interaction.response.send_message(embed=embed)
 
 
+
     @discord.ui.button(label="Tout compte fait... Non!", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
     async def on_deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
@@ -172,7 +178,6 @@ class deleteTeamConfirmation(discord.ui.View):
 
             await interaction.response.send_message("Tu n'es pas concerné par cette interaction, désolé!", ephemeral=True)
             return
-
 
         self.children[0].disabled = True
         self.children[1].disabled = True
@@ -186,8 +191,6 @@ class deleteTeamConfirmation(discord.ui.View):
         embed.set_footer(icon_url=guild.icon, text=guild.name)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
 
 
 class addMemberTeamPanel(discord.ui.View):
@@ -220,14 +223,14 @@ class addMemberTeamPanel(discord.ui.View):
             await interaction.response.send_message("Tu n'es pas l'owner de ta team, tu peux malgré tout en créer une en faisant </createteam:1090677079005212762>", ephemeral=True)
             return        
         
-        teamInstance = Team(user=interaction.user,teamTag= ownerInstance.getTeamTag())
+        teamInstance = Team(user=interaction.user,teamTag= ownerInstance.getTeamTag(), server=interaction.guild)
 
         if teamInstance.isFullTeam():
             await interaction.response.send_message("Ta team a atteint sa capacité maximale (5 membres)!", ephemeral=True)
             return
         
         msg =await interaction.response.send_message(f"Hey {cibleListe.values[0].mention}, on t'a invité à rejoindre la team {ownerInstance.getTeamTag()}",
-                                                      view=decisionTeamMember(teamTag=ownerInstance.getTeamTag(), memberUser=cibleListe.values[0], NotifChannel=serverInstance.getNotifChannel()))
+                                                      view=decisionTeamMember(teamTag=ownerInstance.getTeamTag(), memberUser=cibleListe.values[0], NotifChannel=await serverInstance.getNotifChannel()))
 
 
 
@@ -379,6 +382,7 @@ def UserEditDefaultDict(field, value):
     variableDict = UserDefaultDict
     variableDict[field] = value
     return variableDict 
+
 
 def buildDict(**kwargs):
 
@@ -755,9 +759,6 @@ class Team:
         
         listeFiles = dbServer.teams.find({})
 
-        for i in listeFiles:
-            print(i)
-
         if listeFiles == {}:
 
             return "Il n'y a aucune team à afficher!"
@@ -766,7 +767,9 @@ class Team:
 
             teamName = i["teamName"].capitalize()
             teamTag = i["teamTag"].upper()
-            teamChain = f"{teamChain}\n・{teamName} - {teamTag}"
+            teamOwner = self.server.get_member(i["teamOwner"])
+            teamCapacite = len(i["teamMembers"])
+            teamChain = f"{teamChain}\n・`{teamName}` - {teamOwner.mention} - {teamTag} `({teamCapacite}/5)`"
 
         return teamChain
 
@@ -838,8 +841,17 @@ class Team:
 
             else:
                 return "1. Le nom et le tag de la team ne doivent contenir que des lettres (pas d'espace etc)\n2. La longueur du tag doit être inférieure à 5 caractères et celle du nom de la team doit être inférieure à 15 caractères"
-            
 
+
+    async def assignTeamRole(self):
+
+        teamRoleID= self.getTeamRole()
+        teamRole = self.server.get_role(teamRoleID)
+        userId = self.user.id
+        member:discord.Member = self.server.get_member(userId)
+        await member.add_roles(teamRole)
+        return teamRole
+    
 
     async def createAndAssignTeamRole(self):
 
@@ -880,12 +892,12 @@ class Team:
         userInstance = UserDbSetup(user= self.user)
         userInstance.Update("team", self.teamTag)
         dbServer.teams.update_one({"teamTag":self.teamTag},{'$push': {'teamMembers':(self.user.name,self.user.id, dt.datetime.today())}}, upsert = True)
+        await self.assignTeamRole()
         await self.addTeamTagNickname()
     
+
     async def memberLeaveTeam(self):
-
         userInstance = UserDbSetup(user= self.user)
-
         userInstance.Update("team", None)
         await self.removeTeamTagNickname()
         dbServer.teams.update_one({"teamTag":self.teamTag},{'$pull': {'teamMembers':{"$in":[self.user.id]}}}, upsert = True)
@@ -893,7 +905,6 @@ class Team:
 
 
     async def addTeamTagNickname(self):
-
         member  = self.server.get_member(self.user.id)
         oldNickName = member.name
         await member.edit(nick=f"[{self.teamTag}] {oldNickName}")
@@ -923,6 +934,8 @@ class Team:
         await interaction.response.send_message(f"Veux-tu accepter l'utilisateur {self.user} dans la team?", view=addMemberTeamPanel())
     
 
+
+
     async def invitationOwnerNewMember(self, guild:discord.Guild, teamOwner: discord.User, teamTag:str):
 
         serverInstance = ServerDBSetup(server=guild)
@@ -936,7 +949,7 @@ class Team:
             await teamOwnerChannel.send(content=teamOwner.mention,embed=buildEmbed(title="Demande d'intégration", content=f"{self.user.mention} veut rejoindre ta team. Quelle est ta décision?", guild = guild), 
                                         view=DecisionTeamOwner(memberUser=self.user,ownerUser= teamOwner, teamTag=self.teamTag, server=self.server, NotifChannel=serverInstance.getNotifChannel))
 
-    async def getTeamRole(self):
+    def getTeamRole(self):
         return self.db["teamRole"]
     
     async def getTeamChannel(self):
