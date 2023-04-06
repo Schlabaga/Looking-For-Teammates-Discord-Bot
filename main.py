@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from config import token, MongoClient, dbBot, dbServer, dbUser
+from config2 import token, MongoClient, dbBot, dbServer, dbUser
 from pymongo.collection import ReturnDocument
 from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView
 import datetime

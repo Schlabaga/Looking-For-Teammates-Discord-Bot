@@ -1,4 +1,4 @@
-from config import dbBot, dbServer, dbUser
+from config2 import dbBot, dbServer, dbUser
 import discord
 import datetime as dt
 from discord.ext import commands
