@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from config import token, MongoClient, dbBot, dbServer, dbUser, valoKey
+from config import token, MongoClient, dbBot, dbServer, dbUser
 from pymongo.collection import ReturnDocument
 from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView
 import datetime
@@ -54,11 +54,8 @@ async def on_guild_join(guild:discord.Guild): #INITIALISATION DE LA DATABASE DU 
 
 @bot.event
 async def on_member_join(member:discord.Member):
-
     userSetup = UserDbSetup(member)
     userSetup.setDefaultDB()
-
-
 
 
 @bot.event
@@ -68,12 +65,10 @@ async def on_member_remove(member: discord.Member):
     userSetup.Update(field="isInServer", content=False)
 
 
-
 @bot.event
 async def on_message(message:discord.Message): #EVENEMENT POUR CATCH TOUS LES MESSAGES
     # print(message.content)
     return
-
 
 
 @bot.event
@@ -212,11 +207,9 @@ async def setownerchannel(interaction: discord.Interaction, notifchannel : disco
     await interaction.response.send_message(f"Le salon `{notifchannel.name}` a bien été défini comme salon pour envoyer les notifications aux membres des teams!", ephemeral=True)
 
 
-
 @bot.tree.command(name="ping", description="Renvoie la latence du bot")
 async def ping(interaction:discord.Interaction):
     await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms")
-
 
 
 @bot.tree.command(name="help", description="Commande d'aide du bot")
@@ -230,7 +223,6 @@ async def help(interaction:discord.Interaction):
         print(command.checks)
         if "has_permissions" in str(command.checks):
             commandName += " - Administrateur"
-
 
         embed.add_field(name=commandName, value=command.description, inline=False)
 

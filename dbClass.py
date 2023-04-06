@@ -3,7 +3,6 @@ import discord
 import datetime as dt
 from discord.ext import commands
 from discord import ui
-import embeds
 
 validEmoji = "✅"
 nonValidEmoji = "❎" 
@@ -461,7 +460,7 @@ class UserDbSetup:
             return f"`{rank[0].capitalize()} {rank[1]}`"
         
         else:
-            return "Rank non renseigné"
+            return "`Rank non renseigné`"
 
 
     def getProfile(self, cible):
@@ -715,6 +714,9 @@ class ServerDBSetup:
     async def getNotifChannel(self):
         return self.dbServeur["notifChannel"]
     
+    def getTeamCategory(self):
+        return self.dbServeur["teamCategory"]
+
 TeamDefaultDict = {}
 
 class Team:
@@ -775,13 +777,11 @@ class Team:
 
 
     def CreateTeamDB(self, teamDict):
-
         dbServer.teams.update_one({"teamTag":self.teamTag.upper()},{"$set":teamDict}, upsert=True)
         # dbServer.teams.update_one({"teamRole":self.teamTag.upper()},{"$set":teamDict}, upsert=True)
         dbUser.user.update_one({"userID":self.user.id},{"$set":{"team":self.teamTag.upper(),"teamOwner":True}}, upsert=True)
         
     def deleteTeamDB(self):
-
         dbServer.teams.delete_one({"teamTag":self.teamTag.upper()})
         dbUser.user.update_many({"team":self.teamTag.upper()}, {"$set": {"team": None, "teamOwner":False}})
 
@@ -882,8 +882,10 @@ class Team:
             memberFound = self.server.get_member(member[1])
             userInstance = UserDbSetup(user = memberFound)
             nb+=1
+            
+            dateExacte = member[2]
 
-            listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {member[2]}"
+            listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte.date()}"
  
         return listeMembres
         
@@ -949,8 +951,63 @@ class Team:
             await teamOwnerChannel.send(content=teamOwner.mention,embed=buildEmbed(title="Demande d'intégration", content=f"{self.user.mention} veut rejoindre ta team. Quelle est ta décision?", guild = guild), 
                                         view=DecisionTeamOwner(memberUser=self.user,ownerUser= teamOwner, teamTag=self.teamTag, server=self.server, NotifChannel=serverInstance.getNotifChannel))
 
+
     def getTeamRole(self):
         return self.db["teamRole"]
     
     async def getTeamChannel(self):
         return self.db["teamChannel"]
+    
+
+    def checkIfMemberInVc(self, user: discord.Member, vc:discord.VoiceChannel):
+
+        if user in vc.members:
+            return True
+        
+        return False
+
+    async def SendNotificationVoc(self):
+
+        serverInstance = ServerDBSetup(server=self.server)
+        categorieTeamVoc:discord.CategoryChannel = serverInstance.getTeamCategory()
+        voice_channels = [channel for channel in categorieTeamVoc.channels if isinstance(channel, discord.VoiceChannel)]
+        userAbsents = []
+        usersPresents = []
+
+        for channel in voice_channels:
+            membreConnectesCount= len(channel.members)
+
+            if membreConnectesCount >=2 and membreConnectesCount>6:
+
+                db = dbServer.teams.find_one({"teamChannel":channel.id})
+                listeTeamMembres = db["teamMembers"]
+                teamTag = db["teamTag"]
+
+                for elt in listeTeamMembres:
+
+                    userID = elt[1]
+                    user = self.server.get_member(userID)
+
+                    if not userID in channel.members:
+
+                        userAbsents.append(user)
+                    
+                    elif userID in channel.members:
+
+                        usersPresents.append(user)
+
+        return userAbsents, usersPresents
+
+
+    async def sendNotifEmbedToTeam(self, content):
+    
+        serverInstance = ServerDBSetup(server=self.server)
+        serverInstance.getNotifChannel()
+
+
+        
+                
+
+
+
+
