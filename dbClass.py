@@ -1,4 +1,4 @@
-from config2 import dbBot, dbServer, dbUser
+from config import dbBot, dbServer, dbUser
 import discord
 import datetime as dt
 from discord.ext import commands
@@ -27,7 +27,7 @@ class DecisionTeamOwner(discord.ui.View):
 
     def __init__(self, teamTag, memberUser: discord.Member, ownerUser: discord.User, server: discord.Guild, NotifChannel):
         super().__init__(timeout=3600)
-        self.teamTag = teamTag
+        self.teamTag = teamTag.upper()
         self.memberUser = memberUser
         self.ownerUser = ownerUser
         self.server = server
@@ -129,8 +129,6 @@ class decisionTeamMember(discord.ui.View):
         embed.set_footer(icon_url=guild.icon, text=guild.name)
         
         await interaction.response.send_message(embed=embed)
-
-
 
 
 
@@ -350,7 +348,8 @@ class createTeamView(discord.ui.View):
 
 
 
-UserDefaultDict=  {"rank":None, "main":None, "available":False, "team":None, "teamOwner":False, "isInServer":True, "pending":False}
+
+UserDefaultDict=  {"rank":None, "main":None, "available":False, "team":None, "teamOwner":False, "isInServer":True, "pending":False, "profile": False}
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 
@@ -469,7 +468,7 @@ class UserDbSetup:
         profileVerif = self.IfFieldInDatabase("profile")
         content = ""
 
-        if profileVerif != str:
+        if profileVerif is not str:
 
             if self.CheckIfFieldExists(field="profile"):
                 
@@ -659,6 +658,7 @@ class ServerDBSetup:
 
 
     def Update(self, field:str, content):
+        
         dbServer.server.update_one({"serverID":self.server.id}, {"$set":{field:content}}, upsert=True)
 
     def CheckIfFieldExists(self, field):
@@ -717,6 +717,8 @@ class ServerDBSetup:
     def getTeamCategory(self):
         return self.dbServeur["teamCategory"]
 
+
+
 TeamDefaultDict = {}
 
 class Team:
@@ -725,9 +727,9 @@ class Team:
 
         self.server = server
         self.user = user
-        self.db = dbServer.teams.find_one({"teamTag":teamTag})
+        self.db = dbServer.teams.find_one({"teamTag":teamTag.upper()})
         self.teamName = teamName
-        self.teamTag = teamTag
+        self.teamTag = teamTag.upper()
 
 
     def isFullTeam(self):
@@ -897,13 +899,24 @@ class Team:
         await self.assignTeamRole()
         await self.addTeamTagNickname()
     
+    async def sendNotifToServer(self,notif):
+        
+        serverInstance = ServerDBSetup(server=self.server)
+        NotifChannelID =await serverInstance.getNotifChannel()
+        notifChannel = self.server.get_channel(NotifChannelID)
+        await notifChannel.send(notif)
+        
+
 
     async def memberLeaveTeam(self):
         userInstance = UserDbSetup(user= self.user)
         userInstance.Update("team", None)
         await self.removeTeamTagNickname()
+        await self.removeTeamRole()
+        await self.sendNotifToServer(f"{self.user.mention} a quitté la team {self.teamTag} :(")
         dbServer.teams.update_one({"teamTag":self.teamTag},{'$pull': {'teamMembers':{"$in":[self.user.id]}}}, upsert = True)
         return f"{self.user.mention} tu as bien quitté la team {self.teamTag}"
+
 
 
     async def addTeamTagNickname(self):
@@ -913,11 +926,18 @@ class Team:
 
     async def removeTeamTagNickname(self):
         userNick = self.server.get_member(self.user.id)
-        newNickName = userNick.name.replace(f'[{self.teamTag}]', "")
         try:
-            await userNick.edit(nick=newNickName)
+            await userNick.edit(nick=None)
         except:
             pass
+        
+    async def removeTeamRole(self):
+        roleId = self.getTeamRole()
+        role = self.server.get_role(roleId)
+        member = self.server.get_member(self.user.id)
+    
+        await member.remove_roles(role)
+        return
 
     def isValidTeamTag(self):
 

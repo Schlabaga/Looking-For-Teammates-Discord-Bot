@@ -1,7 +1,7 @@
 import discord
+from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
-from config2 import token, MongoClient, dbBot, dbServer, dbUser
 from pymongo.collection import ReturnDocument
 from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView
 import datetime
@@ -44,12 +44,10 @@ bot = Bot()
 
 
 
-
 @bot.event
 async def on_guild_join(guild:discord.Guild): #INITIALISATION DE LA DATABASE DU SERVEUR REJOINT 
     guildInstance = ServerDBSetup(server=guild)
     guildInstance.resolveDatabase()
-
 
 
 @bot.event
@@ -97,24 +95,37 @@ async def setupServer(interaction: discord.Interaction, channelBienvenue: discor
     discord.app_commands.Choice(name="Ascendant", value="ascendant"),
     discord.app_commands.Choice(name="Immortal", value="immortal"),
     discord.app_commands.Choice(name="Radiant", value="radiant")
-
 ])
+
 @app_commands.choices(division =[
     discord.app_commands.Choice(name="1", value=1),
     discord.app_commands.Choice(name="2", value=2),
     discord.app_commands.Choice(name="3", value=3)
-
 ])
-async def setRank(interaction: discord.Interaction, rank: discord.app_commands.Choice[str], division: discord.app_commands.Choice[int]):
+async def setRank(interaction: discord.Interaction, rank: discord.app_commands.Choice[str], division: discord.app_commands.Choice[int] = None):
+
+    
 
     user = interaction.user
     choixRank = rank.value
-    choixDivision = division.value
-
+    choixDivision = 0
+    
+    if division is not None:
+        choixDivision = division.value
+    
+    if choixRank == "radiant" and choixDivision == 1 or 2 or 3 or None:
+        await interaction.response.send_message(f"Ton rank a bien été mis à jour, tu es `radiant`", ephemeral=True)
+        userDB = UserDbSetup(user=user)
+        userDB.Update(field="rank", content=(choixRank,0))
+        return
+    
+    if choixDivision == None: 
+        choixDivision = 0
+    
     userDB = UserDbSetup(user=user)
     userDB.Update(field="rank", content=(choixRank,choixDivision))
     await interaction.response.send_message(f"Ton rank a bien été mis a jour, tu es `{choixRank} {choixDivision}`", ephemeral=True)
-
+    return
 
 
 @bot.tree.command(name="findmate", description="Trouve un mate à travers les joueurs libres du serveur")
@@ -132,10 +143,10 @@ async def findmate(interaction: discord.Interaction):
 async def rank(interaction: discord.Interaction, cible:discord.User= None):
 
     utilisateur = interaction.user
-
+    
     if cible != None:
         utilisateur = cible
-    
+
     userClass = UserDbSetup(user=utilisateur)
     await interaction.response.send_message(userClass.getRank(), ephemeral=True)
 
@@ -260,6 +271,7 @@ async def setdispo(interaction: discord.Interaction):
     discord.app_commands.Choice(name="Fade", value="fade"),
     discord.app_commands.Choice(name="Gekko", value="gekko"),
     discord.app_commands.Choice(name="Harbor", value="harbor"),
+    discord.app_commands.Choice(name="Iso", value="iso"),
     discord.app_commands.Choice(name="Jett", value="jett"),
     discord.app_commands.Choice(name="KAYO", value="kayo"),
     discord.app_commands.Choice(name="Killjoy", value="killjoy"),
@@ -278,7 +290,6 @@ async def setmain(interaction: discord.Interaction, main: discord.app_commands.C
 
     userInstance = UserDbSetup(user=interaction.user)
     userInstance.Update("main", main.value)
-
     await interaction.response.send_message(f"Ton main est maintenant `{main.name}`!", ephemeral=True)
 
 
@@ -292,7 +303,6 @@ async def resolvedb(interaction:discord.Interaction):
     serverClass = ServerDBSetup(server=interaction.guild)
     result = serverClass.resolveDatabase()
     await interaction.response.send_message(f"La db de `{interaction.guild.name}` a bien été résolue.", ephemeral=True)
-    
 
 
 
@@ -331,6 +341,27 @@ async def myteam(interaction: discord.Interaction):
     responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
 
     await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
+
+
+@bot.tree.command(name="invite", description="Crée une invite dans ton salon vocal")
+@app_commands.guild_only()
+async def invite(interaction: discord.Interaction, message:str = None):
+
+    user = interaction.user
+
+    if interaction.channel.category.id != 1020311165705916467:
+        await interaction.response.send_message(f"Rends toi dans la catégorie 'Recherche Mate' pour utiliser cette commande!", ephemeral=True)
+        return
+
+    if user.voice is None:
+        await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
+        return        
+    
+    if message is not None:
+        await interaction.response.send_message(f"--> `{message}` - {user.voice.channel.jump_url}")
+        return
+    else:
+        await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**")
 
 
 
@@ -417,5 +448,4 @@ async def setcreateteammodal(interaction:discord.Interaction, createteamchannel:
 
 
 
-
-bot.run(token)
+bot.run(TOKEN)
