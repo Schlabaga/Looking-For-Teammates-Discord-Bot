@@ -1,8 +1,9 @@
 from config import dbBot, dbServer, dbUser
 import discord
-import datetime as dt
+import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
+
 
 validEmoji = "✅"
 nonValidEmoji = "❎" 
@@ -21,6 +22,16 @@ def IsConcernedUser(cibleUser:discord.Member, interactionUser:discord.Member):
         return True
     
     return False
+
+
+
+def format_date_francais(date_str):
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    date_obj = dt.datetime.strptime(str(date_str), '%Y-%m-%d %H:%M:%S.%f')
+    date_formattee = date_obj.strftime('%d.%m.%Y')
+
+    return date_formattee
+
 
 
 class DecisionTeamOwner(discord.ui.View):
@@ -54,9 +65,11 @@ class DecisionTeamOwner(discord.ui.View):
                               timestamp=dt.datetime.now())
         # embed.set_footer(text=guild.name, icon_url=guild.icon)
         
-
-        messageChannel = await self.NotifChannel.send(content= self.memberUser.mention,embed=embed)
+        messageChannel = await self.NotifChannel.send(embed=embed)
+        ghostPing = await self.NotifChannel.send(self.memberUser.mention)
+        await ghostPing.delete(delay=1)
         message = await interaction.response.send_message(embed=embed)
+        await messageChannel.add_reaction('✨​')
 
 
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
@@ -84,7 +97,7 @@ class decisionTeamMember(discord.ui.View):
 
     def __init__(self, teamTag, memberUser: discord.Member, NotifChannel: discord.TextChannel):
         super().__init__(timeout=3600)
-        self.teamTag = teamTag
+        self.teamTag = teamTag.upper()
         self.memberUser = memberUser
         self.server = memberUser.guild
         self.NotifChannel = self.server.get_channel(NotifChannel)
@@ -209,13 +222,18 @@ class addMemberTeamPanel(discord.ui.View):
         serverInstance = ServerDBSetup(server=interaction.guild)
 
         if cibleListe.values[0].bot:
-            await interaction.response.send_message("Cet utilisateur est un robot, il ne peut pas rejoindre de team!", ephemeral=True)
+            await interaction.response.send_message("Cet utilisateur est un bot, il ne peut pas rejoindre de team!", ephemeral=True)
             return
 
         if not ownerInstance.isInTeam():
             await interaction.response.send_message("Tu n'es pas dans une team, tu peux en créer une en faisant </createteam:1090677079005212762>", ephemeral=True)
             return
         
+        if cibleInstance.isInTeam():
+            await interaction.response.send_message("Cet utilisateur est déjà dans une team!", ephemeral=True)
+            return
+                
+
         if not ownerInstance.isTeamOwner():
             await interaction.response.send_message("Tu n'es pas l'owner de ta team, tu peux malgré tout en créer une en faisant </createteam:1090677079005212762>", ephemeral=True)
             return        
@@ -228,7 +246,7 @@ class addMemberTeamPanel(discord.ui.View):
         
         msg =await interaction.response.send_message(f"Hey {cibleListe.values[0].mention}, on t'a invité à rejoindre la team {ownerInstance.getTeamTag()}",
                                                       view=decisionTeamMember(teamTag=ownerInstance.getTeamTag(), memberUser=cibleListe.values[0], NotifChannel=await serverInstance.getNotifChannel()))
-
+        return
 
 
 class createTeamModal(ui.Modal, title= "Crée ta team!"):
@@ -349,7 +367,7 @@ class createTeamView(discord.ui.View):
 
 
 
-UserDefaultDict=  {"rank":None, "main":None, "available":False, "team":None, "teamOwner":False, "isInServer":True, "pending":False, "profile": False}
+UserDefaultDict=  {"rank":None, "main":None, "available":False, "team":None, "teamOwner":False, "isInServer":True, "pending":False, "profile": False, "isOwnerOfVocID":None }
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 
@@ -593,6 +611,7 @@ class UserDbSetup:
         return chaineMates
     
 
+
     def getMain(self, db):
 
         if "main" in db:
@@ -619,7 +638,7 @@ class UserDbSetup:
 
             teamTag = self.getTeamTag()
             teamInstance = Team(user= self.user, teamTag=teamTag, server= server)
-            return (teamTag,teamInstance.getTeamMembers())
+            return (teamTag,teamInstance.getTeamMembers(), teamInstance.getTeamName())
 
         return ("Tu n'es pas dans une team!","Fais </jointeam:1090990838131200091> pour rejoindre une team!")
 
@@ -636,10 +655,12 @@ class UserDbSetup:
             
             else:
                 return False
-
+    
+    def setVocChannelOwner(self, channel):
+        pass
     
 
-ServerDefaultDict=  {"salonTeamOwner":None, "roleTeamOwner":None, "teamenabled":True, "teamCategory":None}
+ServerDefaultDict=  {"salonTeamOwner":None, "roleTeamOwner":None, "teamenabled":True, "teamCategory":None, "gamesVcCategories": None}
 
 
 def ServerEditDefaultDict(field, value):
@@ -706,16 +727,20 @@ class ServerDBSetup:
     def getOwnerChannel(self):
         return self.dbServeur["salonTeamOwner"]
     
-    
     def getOwnerRole(self):
         return self.dbServeur["roleTeamOwner"]
-
 
     async def getNotifChannel(self):
         return self.dbServeur["notifChannel"]
     
     def getTeamCategory(self):
         return self.dbServeur["teamCategory"]
+
+    def updateServerDBList(self,listName ,elt,action):
+        
+        listCategoriesVC = dbServer.server.update_one({"serverID":self.server.id}, {action: {listName: elt}}, upsert=True)
+        
+        return listCategoriesVC
 
 
 
@@ -727,9 +752,11 @@ class Team:
 
         self.server = server
         self.user = user
-        self.db = dbServer.teams.find_one({"teamTag":teamTag.upper()})
+        self.teamTag = teamTag
+        if teamTag:
+            self.db = dbServer.teams.find_one({"teamTag":teamTag.upper()})
+            self.teamTag = teamTag.upper()
         self.teamName = teamName
-        self.teamTag = teamTag.upper()
 
 
     def isFullTeam(self):
@@ -748,7 +775,7 @@ class Team:
             return True
         else:
             return False
-        
+    
 
     def CheckIfValidNameAndTag(self):
 
@@ -765,7 +792,7 @@ class Team:
 
         if listeFiles == {}:
 
-            return "Il n'y a aucune team à afficher!"
+            return None
 
         for i in listeFiles:
 
@@ -885,9 +912,10 @@ class Team:
             userInstance = UserDbSetup(user = memberFound)
             nb+=1
             
-            dateExacte = member[2]
+            dateExacte = format_date_francais(member[2])
+            
 
-            listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte.date()}"
+            listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
  
         return listeMembres
         
@@ -899,12 +927,17 @@ class Team:
         await self.assignTeamRole()
         await self.addTeamTagNickname()
     
-    async def sendNotifToServer(self,notif):
+    async def sendNotifToServer(self,content, embed = False):
         
         serverInstance = ServerDBSetup(server=self.server)
         NotifChannelID =await serverInstance.getNotifChannel()
         notifChannel = self.server.get_channel(NotifChannelID)
-        await notifChannel.send(notif)
+        if not embed:
+            await notifChannel.send(content)
+            return
+        
+        await notifChannel.send(embed=content)
+
         
 
 
@@ -913,7 +946,10 @@ class Team:
         userInstance.Update("team", None)
         await self.removeTeamTagNickname()
         await self.removeTeamRole()
-        await self.sendNotifToServer(f"{self.user.mention} a quitté la team {self.teamTag} :(")
+        embed = discord.Embed(title="Oh non!", description=f"{self.user.mention} a quitté la team {self.teamTag} :(", 
+                            timestamp=dt.datetime.now())
+
+        await self.sendNotifToServer(content=embed, embed=True)
         dbServer.teams.update_one({"teamTag":self.teamTag},{'$pull': {'teamMembers':{"$in":[self.user.id]}}}, upsert = True)
         return f"{self.user.mention} tu as bien quitté la team {self.teamTag}"
 
@@ -1024,6 +1060,8 @@ class Team:
         serverInstance = ServerDBSetup(server=self.server)
         serverInstance.getNotifChannel()
 
+
+        
 
         
                 

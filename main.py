@@ -5,8 +5,11 @@ from discord.ext import commands
 from pymongo.collection import ReturnDocument
 from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView
 import datetime
+import locale
+
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
+
 
 class Bot(commands.Bot):
 
@@ -48,12 +51,17 @@ bot = Bot()
 async def on_guild_join(guild:discord.Guild): #INITIALISATION DE LA DATABASE DU SERVEUR REJOINT 
     guildInstance = ServerDBSetup(server=guild)
     guildInstance.resolveDatabase()
+    
 
 
 @bot.event
 async def on_member_join(member:discord.Member):
     userSetup = UserDbSetup(member)
     userSetup.setDefaultDB()
+
+    
+    
+    
 
 
 @bot.event
@@ -70,8 +78,23 @@ async def on_message(message:discord.Message): #EVENEMENT POUR CATCH TOUS LES ME
 
 
 @bot.event
-async def on_voice_state_update(member, before, after):
-    print(f'{member} has joined the vc')
+async def on_voice_state_update(member:discord.Member, before, after):
+    
+    guild:discord.Guild= member.guild
+    channel = before.channel if before.channel is not None else after.channel
+    
+    if channel.id != 1213130829476143134:
+        return
+    
+    if member.voice.channel.id == 1213130829476143134:
+        salonVocal = await guild.create_voice_channel(name=f'Salon de {member.global_name}', user_limit=5, category= guild.get_channel(1020311168167972944))
+        await member.move_to(salonVocal)
+            
+        if before.channel is None and after.channel is not None:
+            print(f'{member} a rejoint un salon vocal.')
+            
+        if before.channel is not None and after.channel is None:
+            print(f'{member} a quitté un salon vocal.')
 
 
 
@@ -170,11 +193,15 @@ async def profile(interaction: discord.Interaction, user:discord.User= None):
 @bot.tree.command(name="config", description="Config le serveur")
 @app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
-async def config(interaction:discord.Interaction, teamchannel: discord.TextChannel):
+async def config(interaction:discord.Interaction, teampanelchannel: discord.TextChannel, gamevccategorie:discord.CategoryChannel = None):
 
-    await teamchannel.send(view=addMemberTeamPanel())
-
-    await interaction.response.send_message("Les messages ont bien été envoyés!", ephemeral=True)
+    guild= interaction.guild
+    serverInstance = ServerDBSetup(server=guild)
+    if gamevccategorie:
+        serverInstance.updateServerDBList(listName="gamesVcCategories",elt=gamevccategorie.id, action="$addToSet") #$addToSet permet d'ajouter seulement si l'elt n'est pas dans la liste
+    
+    await teampanelchannel.send(view=addMemberTeamPanel())
+    await interaction.response.send_message("les données ont bien été prises en comptes.", ephemeral=True)
 
 
 
@@ -337,15 +364,15 @@ async def myteam(interaction: discord.Interaction):
 
     userInstance = UserDbSetup(user=interaction.user)
     team = userInstance.MyTeam(server=interaction.guild)
-    responseEmbed = discord.Embed(title=team[0], description=team[1], timestamp=datetime.datetime.now())
+    responseEmbed = discord.Embed(title=f"{team[2].capitalize()} - {team[0]}", description=team[1], timestamp=datetime.datetime.now())
     responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
 
     await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
 
 
-@bot.tree.command(name="invite", description="Crée une invite dans ton salon vocal")
+@bot.tree.command(name="mate", description="Crée une invite dans ton salon vocal")
 @app_commands.guild_only()
-async def invite(interaction: discord.Interaction, message:str = None):
+async def mate(interaction: discord.Interaction, message:str = None):
 
     user = interaction.user
 
@@ -361,7 +388,7 @@ async def invite(interaction: discord.Interaction, message:str = None):
         await interaction.response.send_message(f"--> `{message}` - {user.voice.channel.jump_url}")
         return
     else:
-        await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**")
+        await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**",suppress_embeds=True)
 
 
 
