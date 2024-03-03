@@ -3,17 +3,21 @@ import discord
 import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
+embedsColor = discord.Colour.red()
 
 
 validEmoji = "✅"
 nonValidEmoji = "❎" 
 
-def buildEmbed(title:str, content:str, guild: discord.Guild,imageurl = None, thumbnailurl = None):
+def buildEmbed(title:str, content:str, guild: discord.Guild, displayFooter = False, imageurl = None, thumbnailurl = None):
 
     embedResult = discord.Embed(title=title.capitalize(), description= content, timestamp=dt.datetime.now())
     embedResult.set_image(url=imageurl)
     embedResult.set_thumbnail(url=thumbnailurl)
-    embedResult.set_footer(text=guild.name, icon_url=guild.icon)
+    embedResult.colour = embedsColor
+    if displayFooter == True:
+        embedResult.set_footer(text=guild.name, icon_url=guild.icon)
+    embedResult.timestamp = dt.datetime.now()
     return embedResult
 
 def IsConcernedUser(cibleUser:discord.Member, interactionUser:discord.Member):
@@ -61,15 +65,15 @@ class DecisionTeamOwner(discord.ui.View):
 
         await teamInstance.memberJoinTeam()
 
-        embed = discord.Embed(title="Bravo!", description=f"{self.memberUser.mention} devient membre de la team {self.teamTag}!", 
-                              timestamp=dt.datetime.now())
+
+        embed = buildEmbed(title="Bravo", content= f"{self.memberUser.mention} devient membre de la team {self.teamTag}!",guild= guild, displayFooter=False)
         # embed.set_footer(text=guild.name, icon_url=guild.icon)
         
         messageChannel = await self.NotifChannel.send(embed=embed)
         ghostPing = await self.NotifChannel.send(self.memberUser.mention)
         await ghostPing.delete(delay=1)
         message = await interaction.response.send_message(embed=embed)
-        await messageChannel.add_reaction('✨​')
+        await messageChannel.add_reaction('U+1F389​')
 
 
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
@@ -638,9 +642,10 @@ class UserDbSetup:
 
             teamTag = self.getTeamTag()
             teamInstance = Team(user= self.user, teamTag=teamTag, server= server)
+            
             return (teamTag,teamInstance.getTeamMembers(), teamInstance.getTeamName())
 
-        return ("Tu n'es pas dans une team!","Fais </jointeam:1090990838131200091> pour rejoindre une team!")
+        return None
 
 
     def JoinTeam(self):

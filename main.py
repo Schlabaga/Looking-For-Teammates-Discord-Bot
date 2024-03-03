@@ -9,7 +9,7 @@ import locale
 
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
-
+embedsColor = "FF0000"
 
 class Bot(commands.Bot):
 
@@ -59,9 +59,6 @@ async def on_member_join(member:discord.Member):
     userSetup = UserDbSetup(member)
     userSetup.setDefaultDB()
 
-    
-    
-    
 
 
 @bot.event
@@ -104,7 +101,7 @@ async def setupServer(interaction: discord.Interaction, channelBienvenue: discor
 """
 
 
-@bot.tree.command(name="setrank", description="Met à jour ton rank Valorant")
+@bot.tree.command(name="updaterank", description="Met à jour ton rank Valorant") #modifier en "setrank"
 @app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.choices(rank =[
@@ -125,9 +122,7 @@ async def setupServer(interaction: discord.Interaction, channelBienvenue: discor
     discord.app_commands.Choice(name="2", value=2),
     discord.app_commands.Choice(name="3", value=3)
 ])
-async def setRank(interaction: discord.Interaction, rank: discord.app_commands.Choice[str], division: discord.app_commands.Choice[int] = None):
-
-    
+async def setRank(interaction: discord.Interaction, rank: discord.app_commands.Choice[str], division: discord.app_commands.Choice[int]):
 
     user = interaction.user
     choixRank = rank.value
@@ -363,12 +358,17 @@ async def teamlist(interaction: discord.Interaction):
 async def myteam(interaction: discord.Interaction):
 
     userInstance = UserDbSetup(user=interaction.user)
+    
     team = userInstance.MyTeam(server=interaction.guild)
-    responseEmbed = discord.Embed(title=f"{team[2].capitalize()} - {team[0]}", description=team[1], timestamp=datetime.datetime.now())
-    responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
+    
+    if team!= None:
+        
+        responseEmbed = discord.Embed(title=f"{team[2].capitalize()} - {team[0]}", description=team[1], timestamp=datetime.datetime.now())
+        responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
 
-    await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
+        return await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
 
+    await interaction.response.send_message("Tu n'es dans aucune team! Fais </jointeam:1090990838131200091> pour en rejoindre une!", ephemeral=True)
 
 @bot.tree.command(name="mate", description="Crée une invite dans ton salon vocal")
 @app_commands.guild_only()
@@ -406,7 +406,7 @@ async def jointeam(interaction: discord.Interaction, teamtag:str):
         msg = f"Tu es le propriétaire de {userInstance.getTeamTag()}. Pour rejoindre une team, il faut que tu quitte le serveur pour supprimer ton actuelle team..."
 
     elif userInstance.isInTeam():
-        msg = f"Tu ne peux pas rejoindre d'autre team tant que tu es dans la team {userInstance.getTeamTag()}. Fais /leaveteam pour la quitter"
+        msg = f"Tu ne peux pas rejoindre d'autre team tant que tu es dans la team {userInstance.getTeamTag()}. Fais </leaveteam:1091367598102417538> pour la quitter"
 
     elif not teamInstance.isValidTeamTag():
         msg = f"Désolé, la team {teamtag.upper()} n'existe pas"
