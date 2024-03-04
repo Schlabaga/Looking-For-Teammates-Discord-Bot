@@ -65,6 +65,11 @@ async def on_member_join(member:discord.Member):
 async def on_member_remove(member: discord.Member):
 
     userSetup = UserDbSetup(member)
+    if userSetup.isInTeam():
+        tag = userSetup.getTeamTag()
+        teamInstance = Team(user=member, teamTag=tag, server=member.guild)
+        teamInstance.memberLeaveTeam()
+    
     userSetup.Update(field="isInServer", content=False)
 
 
@@ -261,8 +266,6 @@ async def help(interaction:discord.Interaction):
 
     embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon)
     await interaction.response.send_message(embed=embed)
-
-
 
 @bot.tree.command(name="createteam", description="Crée ta propre team!")
 @app_commands.guild_only()
@@ -462,6 +465,24 @@ async def deleteteam(interaction: discord.Interaction):
 
     else:
         await interaction.response.send_message("Tu n'es pas owner d'une quelconque team, tu ne peux donc pas en supprimer une!", ephemeral=True)
+
+
+@bot.tree.command(name="setnewowner", description="Donne les commandes de ta team à quelqu'un d'autre (si tu es propriétaire)")
+@app_commands.guild_only()
+async def setnewowner(interaction: discord.Interaction, newowner: discord.Member):
+    
+    userInstance =UserDbSetup(user=interaction.user)
+
+    if userInstance.isTeamOwner():
+        teamTag= userInstance.getTeamTag()
+        teamInstance = Team(user=interaction.user, teamTag=teamTag, server=interaction.guild)
+        #teamInstance.changeTeamOwner(newOwner=new)
+        await interaction.response.send_message(view=deleteTeamConfirmation(teamTag=teamTag, server=interaction.guild, teamOwner=interaction.user))
+        
+
+    else:
+        await interaction.response.send_message("Tu n'es pas owner d'une quelconque team, tu ne peux donc pas en supprimer une!", ephemeral=True)
+
 
 
 

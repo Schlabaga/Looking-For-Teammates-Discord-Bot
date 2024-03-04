@@ -153,6 +153,7 @@ class deleteTeamConfirmation(discord.ui.View):
 
     def __init__(self, teamTag, server: discord.Guild, teamOwner = discord.Member):
         super().__init__(timeout=3600)
+
         self.teamTag = teamTag
         self.server = server
         self.teamOwner = teamOwner
@@ -186,6 +187,81 @@ class deleteTeamConfirmation(discord.ui.View):
 
 
     @discord.ui.button(label="Tout compte fait... Non!", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
+    async def on_deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if not IsConcernedUser(cibleUser=self.teamOwner, interactionUser=interaction.user):
+
+            await interaction.response.send_message("Tu n'es pas concerné par cette interaction, désolé!", ephemeral=True)
+            return
+
+        self.children[0].disabled = True
+        self.children[1].disabled = True
+
+        await interaction.message.edit(view=self)
+
+        guild = interaction.guild
+
+        embed = discord.Embed(title="Ouf! Quel soulagement!", description=f"Ta team ne sera pas supprimée!",
+                              timestamp= dt.datetime.now())
+        embed.set_footer(icon_url=guild.icon, text=guild.name)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+
+class OuiNonPanel(discord.ui.View):
+
+    def __init__(self, server:discord.Guild,teamTag=None, teamOwner:discord.Member = None,
+                 messageOui = None, messageNon = None, boutonOui = None, boutonNon = None, placeholderOui = None, placeholderNon = None):
+        super().__init__(timeout=3600)
+        self.teamTag = teamTag
+        self.server = server
+        self.teamOwner = teamOwner
+        
+        self.messageOui = messageOui
+        self.messageNon = messageNon
+        
+        self.boutonOui = boutonOui
+        self.boutonNon = boutonNon
+        
+        self.placeholderOui = placeholderOui
+        self.placeholderNon = placeholderNon
+
+    def add_buttons(self):
+        if self.messageOui:
+            self.add_item(discord.ui.Button(style=discord.ButtonStyle.green, label=self.messageOui, custom_id='accept_button'))
+
+        if self.messageNon:
+            self.add_item(discord.ui.Button(style=discord.ButtonStyle.red, label=self.messageNon, custom_id='reject_button'))
+
+    @discord.ui.button(label="Accepter", style=discord.ButtonStyle.green, emoji=validEmoji)
+    async def on_accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if not IsConcernedUser(cibleUser=self.teamOwner, interactionUser=interaction.user):
+            await interaction.response.send_message("Tu n'es pas concerné par cette interaction, désolé!", ephemeral=True)
+            return
+        
+        self.children[0].disabled = True
+        self.children[1].disabled = True
+
+        await interaction.message.edit(view=self)
+        guild = interaction.guild
+
+        teamInstance = Team(user=interaction.user, teamTag=self.teamTag, server=self.server)
+
+        await teamInstance.deleteTeam()
+
+        embed = discord.Embed(title="La fin d'une aventure...", description=f"La team {self.teamTag} vient d'être supprimée :(", 
+                              timestamp=dt.datetime.now())
+        embed.set_footer(text=guild.name, icon_url=guild.icon)
+
+        # notifs = await bot.get_channel()
+        # messageChannel = await notifs.send(embed=embed)
+        message = await interaction.response.send_message(embed=embed)
+
+
+
+    @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
     async def on_deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         if not IsConcernedUser(cibleUser=self.teamOwner, interactionUser=interaction.user):
@@ -477,8 +553,12 @@ class UserDbSetup:
         rank = self.IfFieldInDatabase(field="rank")
 
         if isinstance(rank,list):
-
-            return f"`{rank[0].capitalize()} {rank[1]}`"
+            
+            if rank[1] != 0:
+                return f"`{rank[0].capitalize()} {rank[1]}`"
+            
+            else:
+                return f"`{rank[0].capitalize()}`"
         
         else:
             return "`Rank non renseigné`"
@@ -552,6 +632,15 @@ class UserDbSetup:
             return self.db["teamOwner"]
 
         return False
+
+    def setNewTeamOwner(self):
+        
+        self.Update(field="teamOwner", content=True)
+
+
+    def retrogradeFromTeamOwner(self):
+
+        self.Update(field="teamOwner", content=False)
 
 
     def isInTeam(self):
@@ -639,9 +728,10 @@ class UserDbSetup:
     def MyTeam(self, server: discord.Guild):
 
         if self.isInTeam():
-
+            
             teamTag = self.getTeamTag()
-            teamInstance = Team(user= self.user, teamTag=teamTag, server= server)
+            teamInstance = Team(user= self.user, teamTag=teamTag, server= server)            
+            
             
             return (teamTag,teamInstance.getTeamMembers(), teamInstance.getTeamName())
 
@@ -906,21 +996,25 @@ class Team:
     def getTeamName(self):
         return self.db["teamName"]
 
-    def getTeamMembers(self):
+    async def getTeamMembers(self):
 
         listeMembres=  ""
         nb = 0
 
         for member in self.db["teamMembers"]:
-
+            
             memberFound = self.server.get_member(member[1])
             userInstance = UserDbSetup(user = memberFound)
+            
             nb+=1
             
             dateExacte = format_date_francais(member[2])
-            
+            if userInstance.isTeamOwner():
+                listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} **(Chef)** - {userInstance.getRank()} - {dateExacte}"
+                
+            else: 
+                listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
 
-            listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
  
         return listeMembres
         
@@ -943,6 +1037,14 @@ class Team:
         
         await notifChannel.send(embed=content)
 
+    async def changeTeamOwner(self, newOwner):
+        
+        userSourceInstance = UserDbSetup(user=self.user)
+        userSourceInstance.retrogradeFromTeamOwner()
+        userCibleInstance = UserDbSetup(user=newOwner)
+        
+        userCibleInstance.setNewTeamOwner()
+        dbServer.teams.update_one({"teamTag":self.teamTag}, {"$set":{"teamOwner":newOwner.id}})
         
 
 
@@ -956,7 +1058,7 @@ class Team:
 
         await self.sendNotifToServer(content=embed, embed=True)
         dbServer.teams.update_one({"teamTag":self.teamTag},{'$pull': {'teamMembers':{"$in":[self.user.id]}}}, upsert = True)
-        return f"{self.user.mention} tu as bien quitté la team {self.teamTag}"
+        return f"{self.user.mention} vient de quitter la team {self.teamTag}"
 
 
 
