@@ -28,6 +28,7 @@ class Bot(commands.Bot):
 
         # dbbot.botfiles.update_one({"botID":bot.user.id},{"$set":{"botname":bot.user.name}}, upsert=True)
 
+        
         print("--------------------------------------------")
         print(f"{bot.user.name} est prêt à être utilisé!")
         print("--------------------------------------------")
@@ -133,18 +134,17 @@ async def setRank(interaction: discord.Interaction, rank: discord.app_commands.C
     choixRank = rank.value
     choixDivision = 0
     
+    
     if division is not None:
         choixDivision = division.value
     
-    if choixRank == "radiant" and choixDivision == 1 or 2 or 3 or None:
-        await interaction.response.send_message(f"Ton rank a bien été mis à jour, tu es `radiant`", ephemeral=True)
+    if choixRank == "radiant" or choixRank =="unranked":
+        await interaction.response.send_message(f"Ton rank a bien été mis à jour, tu es ``{choixRank.lower()}``", ephemeral=True)
         userDB = UserDbSetup(user=user)
         userDB.Update(field="rank", content=(choixRank,0))
         return
     
-    if choixDivision == None: 
-        choixDivision = 0
-    
+
     userDB = UserDbSetup(user=user)
     userDB.Update(field="rank", content=(choixRank,choixDivision))
     await interaction.response.send_message(f"Ton rank a bien été mis a jour, tu es `{choixRank} {choixDivision}`", ephemeral=True)
@@ -370,7 +370,7 @@ async def myteam(interaction: discord.Interaction):
 
     userInstance = UserDbSetup(user=interaction.user)
     
-    team = userInstance.MyTeam(server=interaction.guild)
+    team = await userInstance.MyTeam(server=interaction.guild)
     
     if team!= None:
         
@@ -398,38 +398,59 @@ async def myteam(interaction: discord.Interaction):
 async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.Choice[int], codegroupe:str = None, 
                pénalitérank:discord.app_commands.Choice[int] = None):
     
-    strResult = ""
+    
+    user = interaction.user
+    guild = interaction.guild
+    
+    rankEmojiID = 0
+    if interaction.channel.category.id != 1020311165705916467:
+        await interaction.response.send_message(f"Rends toi dans la catégorie 'Recherche Mate' pour utiliser cette commande!", ephemeral=True)
+        return
+
     penalite = "Non"
     title = f"{interaction.user.name} cherche un/des mate(s) pour jouer à Valorant! \n\n"
-    dictResult = {}
     rank = "Non renseigné - fais la commande </setrank:1213576606162092052>."
-    rankInstance = UserDbSetup(user=interaction.user).getRank()
+    vocalURL = "```Aucun salon vocal```"
     
-    if not codegroupe:
+    userInstance = UserDbSetup(user=interaction.user)
+    rankFromInstance =  userInstance.getRank()
+    
+    if not rankFromInstance:
+        rankEmojiID = userInstance.rankEmojiID
+
+    if not codegroupe or len(codegroupe) != 6:
         codegroupe = "En DM"
     else:
         codegroupe = codegroupe.upper()
 
     if pénalitérank:
         if pénalitérank.value == 1:
-            panalité = "Oui (-25%)"
+            penalite = "Oui (-25%)"
             
-    if rankInstance:
-        rank = rankInstance.capitalize()
+    if rankFromInstance:
+        rank = rankFromInstance.capitalize()
+
+    try:
+        vocalURL = user.voice.channel.jump_url
+    
+    except:
+        await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
+        return
+        
+    rankName = rank.replace("`","")
+    rankEmojiID = userInstance.rankEmojiID
+    rankEmoji:discord.Emoji = bot.get_emoji(rankEmojiID)
+    rankEmojiToUse = f"<:{rankEmoji.name}:{rankEmojiID}>"
+
 
     embed = discord.Embed(title=title, description= interaction.user.mention, colour= discord.Colour.red(), timestamp=datetime.datetime.now())
-    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
-    embed.add_field(name="Joueurs recherchés", value=f"```{nbjoueurs.value}```", inline=True)
+    embed.add_field(name=f"Joueurs recherchés", value=f"```{nbjoueurs.value}```", inline=True)
     embed.add_field(name="Pénalité de rank", value=f"```{penalite}```", inline=True)
-
-    embed.add_field(name="Rank", value=f"```{rank}```", inline=True)
+    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
+    embed.add_field(name=f"{rankEmojiToUse} Rank", value=f"```{rankName.capitalize()}```", inline=True)
+    embed.add_field(name=f"Salon vocal", value=f"{vocalURL}", inline=True)
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     
-    user = interaction.user
-
-    if interaction.channel.category.id != 1020311165705916467:
-        await interaction.response.send_message(f"Rends toi dans la catégorie 'Recherche Mate' pour utiliser cette commande!", ephemeral=True)
-        return
 
     if user.voice is None:
         await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
@@ -451,7 +472,7 @@ async def jointeam(interaction: discord.Interaction, teamtag:str):
     teamOwnerID = 154
 
     if userInstance.isTeamOwner():
-        msg = f"Tu es le propriétaire de {userInstance.getTeamTag()}. Pour rejoindre une team, il faut que tu quitte le serveur pour supprimer ton actuelle team..."
+        msg = f"Tu es le propriétaire de {userInstance.getTeamTag()}. Pour rejoindre une team, il faut que tu quitte le serveur pour supprimer ton actuelle ge.."
 
     elif userInstance.isInTeam():
         msg = f"Tu ne peux pas rejoindre d'autre team tant que tu es dans la team {userInstance.getTeamTag()}. Fais </leaveteam:1091367598102417538> pour la quitter"

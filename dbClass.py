@@ -1,4 +1,4 @@
-from config import dbBot, dbServer, dbUser
+from config import dbBot, dbServer, dbUser, rankDict
 import discord
 import datetime as dt, locale
 from discord.ext import commands
@@ -500,7 +500,9 @@ class UserDbSetup:
 
         self.user:discord.User = user
         self.db = dbUser.user.find_one({"userID":self.user.id})
-
+        self.rank = None
+        self.division = None
+        self.rankEmojiID = None
         if self.db == None:
 
             self.IfNoDBCreateOne()
@@ -549,21 +551,56 @@ class UserDbSetup:
         if self.user.bot:
             return "Les bots ne jouent pas aux jeux vidéo!"
         
-        db = self.IfNoDBCreateOne()
+        self.IfNoDBCreateOne()
+        rankFromDb = self.IfFieldInDatabase(field="rank")
 
-        rank = self.IfFieldInDatabase(field="rank")
-
-        if isinstance(rank,list):
+        if isinstance(rankFromDb,list):
             
-            if rank[1] != 0:
-                return f"`{rank[0].capitalize()} {rank[1]}`"
+            if rankFromDb[1] != 0:
+                self.rank = rankFromDb[0]
+                self.division = rankFromDb[1]
+                self.getRankEmoji(rank=rankFromDb[0], division=rankFromDb[1])
+                print(self.rankEmojiID)
+                return f"`{rankFromDb[0].capitalize()} {rankFromDb[1]}`"
             
             else:
-                return f"`{rank[0].capitalize()}`"
+                
+                self.rank = rankFromDb[0]
+                self.getRankEmoji(rank=rankFromDb[0])
+                return f"`{rankFromDb[0].capitalize()}`"
         
         else:
+            self.getRankEmoji(rank="unranked")
             return None
 
+
+    def getRankEmoji(self, rank, division= None):
+        rank = rank.lower()
+        rankDef = 0
+        listeRanksResult = []
+    
+        if rank == "radiant":
+            self.rankEmojiID = rankDict["radiant"]
+            return rankDict["radiant"]
+        
+        if rank == "unranked":
+            self.rankEmojiID = rankDict["unranked"]
+            return rankDict["unranked"]
+            
+        
+        for items in rankDict.keys():
+            rankEdit = f"{rank}_{division}"
+            
+            if rankEdit == items:
+                listeRanksResult.append(items)
+                rankDef = rankDict[items]
+                
+        self.rankEmojiID = rankDef
+            
+        
+        return rankDef
+        
+        
 
     def getProfile(self, cible):
 
@@ -733,15 +770,14 @@ class UserDbSetup:
     
 
 
-    def MyTeam(self, server: discord.Guild):
+    async def MyTeam(self, server: discord.Guild):
 
         if self.isInTeam():
             
             teamTag = self.getTeamTag()
-            teamInstance = Team(user= self.user, teamTag=teamTag, server= server)            
-            
-            
-            return (teamTag,teamInstance.getTeamMembers(), teamInstance.getTeamName())
+            teamInstance = Team(user= self.user, teamTag=teamTag, server= server)
+            teamMembers = await teamInstance.getTeamMembers()
+            return (teamTag,teamMembers, teamInstance.getTeamName())
 
         return None
 
@@ -760,7 +796,7 @@ class UserDbSetup:
                 return False
     
     def setVocChannelOwner(self, channel):
-        pass
+        pass #A TERMINER
     
 
 ServerDefaultDict=  {"salonTeamOwner":None, "roleTeamOwner":None, "teamenabled":True, "teamCategory":None, "gamesVcCategories": None}
@@ -845,8 +881,7 @@ class ServerDBSetup:
         
         return listCategoriesVC
 
-    def getRankEmoji(self, rank):
-        
+
 
 
 TeamDefaultDict = {}
