@@ -106,7 +106,7 @@ async def setupServer(interaction: discord.Interaction, channelBienvenue: discor
 """
 
 
-@bot.tree.command(name="updaterank", description="Met à jour ton rank Valorant") #modifier en "setrank"
+@bot.tree.command(name="setrank", description="Met à jour ton rank Valorant") #modifier en "setrank"
 @app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.choices(rank =[
@@ -156,8 +156,13 @@ async def setRank(interaction: discord.Interaction, rank: discord.app_commands.C
 async def findmate(interaction: discord.Interaction):
 
     userDB = UserDbSetup(user=interaction.user)
-    embed = buildEmbed(title=f"Résultat de ta recherche ({userDB.getRank()})", content=userDB.findMate(guild=interaction.guild),guild = interaction.guild)
+    if userDB.getRank():
+        embed = buildEmbed(title=f"Résultat de ta recherche ({userDB.getRank()})", content=userDB.findMate(guild=interaction.guild),guild = interaction.guild)
+    else:
+        embed = buildEmbed(title=f"Rank non renseigné!", content="Communique ton rank en faisant la commande </setrank:1213576606162092052>",guild = interaction.guild)
+        
     await interaction.response.send_message(embed=embed)
+    return
 
 
 
@@ -171,7 +176,10 @@ async def rank(interaction: discord.Interaction, cible:discord.User= None):
         utilisateur = cible
 
     userClass = UserDbSetup(user=utilisateur)
-    await interaction.response.send_message(userClass.getRank(), ephemeral=True)
+    if userClass.getRank():
+        await interaction.response.send_message(userClass.getRank(), ephemeral=True)
+    else:
+        await interaction.response.send_message("`Rank non renseigné`", ephemeral=True)
 
 
 @bot.tree.command(name="profile", description="Renvoie le profil d'un utilisateur")
@@ -373,10 +381,50 @@ async def myteam(interaction: discord.Interaction):
 
     await interaction.response.send_message("Tu n'es dans aucune team! Fais </jointeam:1090990838131200091> pour en rejoindre une!", ephemeral=True)
 
-@bot.tree.command(name="mate", description="Crée une invite dans ton salon vocal")
-@app_commands.guild_only()
-async def mate(interaction: discord.Interaction, message:str = None):
 
+
+@bot.tree.command(name="mate", description="Crée une invite dans ton salon vocal et paramètre-la")
+@app_commands.guild_only()
+@app_commands.choices(pénalitérank =[
+    discord.app_commands.Choice(name="Oui (-25%)", value=1),
+    discord.app_commands.Choice(name="Non", value=0)])
+@app_commands.choices(nbjoueurs =[
+    discord.app_commands.Choice(name="1", value=1),
+    discord.app_commands.Choice(name="2", value=2),
+    discord.app_commands.Choice(name="3", value=3),
+    discord.app_commands.Choice(name="4", value=4),
+    discord.app_commands.Choice(name="5", value=5)])
+
+async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.Choice[int], codegroupe:str = None, 
+               pénalitérank:discord.app_commands.Choice[int] = None):
+    
+    strResult = ""
+    penalite = "Non"
+    title = f"{interaction.user.name} cherche un/des mate(s) pour jouer à Valorant! \n\n"
+    dictResult = {}
+    rank = "Non renseigné - fais la commande </setrank:1213576606162092052>."
+    rankInstance = UserDbSetup(user=interaction.user).getRank()
+    
+    if not codegroupe:
+        codegroupe = "En DM"
+    else:
+        codegroupe = codegroupe.upper()
+
+    if pénalitérank:
+        if pénalitérank.value == 1:
+            panalité = "Oui (-25%)"
+            
+    if rankInstance:
+        rank = rankInstance.capitalize()
+
+    embed = discord.Embed(title=title, description= interaction.user.mention, colour= discord.Colour.red(), timestamp=datetime.datetime.now())
+    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
+    embed.add_field(name="Joueurs recherchés", value=f"```{nbjoueurs.value}```", inline=True)
+    embed.add_field(name="Pénalité de rank", value=f"```{penalite}```", inline=True)
+
+    embed.add_field(name="Rank", value=f"```{rank}```", inline=True)
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    
     user = interaction.user
 
     if interaction.channel.category.id != 1020311165705916467:
@@ -386,12 +434,9 @@ async def mate(interaction: discord.Interaction, message:str = None):
     if user.voice is None:
         await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
         return        
-    
-    if message is not None:
-        await interaction.response.send_message(f"--> `{message}` - {user.voice.channel.jump_url}")
-        return
-    else:
-        await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**",suppress_embeds=True)
+
+    await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**", embed=embed)
+
 
 
 

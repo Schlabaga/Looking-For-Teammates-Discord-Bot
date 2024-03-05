@@ -20,6 +20,7 @@ def buildEmbed(title:str, content:str, guild: discord.Guild, displayFooter = Fal
     embedResult.timestamp = dt.datetime.now()
     return embedResult
 
+
 def IsConcernedUser(cibleUser:discord.Member, interactionUser:discord.Member):
 
     if cibleUser.id == interactionUser.id:
@@ -497,7 +498,7 @@ class UserDbSetup:
 
     def __init__(self, user:discord.User):
 
-        self.user = user
+        self.user:discord.User = user
         self.db = dbUser.user.find_one({"userID":self.user.id})
 
         if self.db == None:
@@ -561,7 +562,7 @@ class UserDbSetup:
                 return f"`{rank[0].capitalize()}`"
         
         else:
-            return "`Rank non renseigné`"
+            return None
 
 
     def getProfile(self, cible):
@@ -641,6 +642,13 @@ class UserDbSetup:
     def retrogradeFromTeamOwner(self):
 
         self.Update(field="teamOwner", content=False)
+
+    def getVocID(self):
+
+        if self.user.voice is None:
+            return None
+        
+        return self.user.voice.channel.id
 
 
     def isInTeam(self):
@@ -837,6 +845,8 @@ class ServerDBSetup:
         
         return listCategoriesVC
 
+    def getRankEmoji(self, rank):
+        
 
 
 TeamDefaultDict = {}
