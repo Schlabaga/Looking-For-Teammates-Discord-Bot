@@ -3,7 +3,7 @@ from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
 from pymongo.collection import ReturnDocument
-from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUser
+from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUserToReport
 import datetime
 import locale
 
@@ -23,6 +23,7 @@ class Bot(commands.Bot):
     async def setup_hook(self) -> None:
         self.add_view(addMemberTeamPanel())
         self.add_view(createTeamView())
+        self.add_view(SelectUserToReport())
 
     async def on_ready(self):
 
@@ -255,7 +256,7 @@ async def setownerchannel(interaction: discord.Interaction, notifchannel : disco
 
 @bot.tree.command(name="ping", description="Renvoie la latence du bot")
 async def ping(interaction:discord.Interaction):
-    await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms", view=SelectUser())
+    await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms", view=SelectUserToReport())
 
 
 @bot.tree.command(name="help", description="Commande d'aide du bot")

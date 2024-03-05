@@ -380,7 +380,7 @@ class comptRendu(ui.Modal, title= "Rédige ton compte rendu"):
 
 
 
-class SelectUser(discord.ui.View):
+class SelectUserToReport(discord.ui.View):
 
     def __init__(self):
         super().__init__(timeout=None)
