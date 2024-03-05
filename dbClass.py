@@ -3,6 +3,7 @@ import discord
 import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
+import asyncio
 embedsColor = discord.Colour.red()
 
 
@@ -262,6 +263,7 @@ class OuiNonPanel(discord.ui.View):
 
 
 
+
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
     async def on_deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
@@ -355,6 +357,107 @@ class createTeamModal(ui.Modal, title= "Crée ta team!"):
         msg = await teamInstance.CreateTeam()
 
         await interaction.response.send_message(content=msg, ephemeral=True)
+
+
+class comptRendu(ui.Modal, title= "Rédige ton compte rendu"):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    rendu = ui.TextInput(label='Décris ton problème', style=discord.TextStyle.long, placeholder="Donne le maximum de détails", max_length=500, min_length=100)
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        guild= interaction.guild
+        utilisateur = interaction.user
+        embedResponse=discord.Embed(title=f'Signalement par {utilisateur.name}')
+        embedResponse.set_footer(text=guild.name,icon_url=guild.icon)
+
+        embedResponse.add_field(name="Compte-rendu",value=self.rendu)
+        msg = interaction.original_response()
+
+        await msg.edit(content="Bababba", ephemeral=True)
+
+
+
+class SelectUser(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        #BUGS : confond avec la classe team
+
+    @discord.ui.select(
+        cls=discord.ui.UserSelect,
+        max_values=1,
+        placeholder='Quel membre souhaites-tu sélectionner?',
+        custom_id= "persistent_view:selectsupport"
+    )
+
+    @discord.ui.select(placeholder="Où a eu lieu l'abus?", min_values=1, max_values=1,options=[
+        discord.SelectOption(label="Discord", value="discord"),
+        discord.SelectOption(label="In Game", value="ingame"),
+    ])
+
+          
+    async def reportUserSelect(self, interaction: discord.Interaction, cible: discord.ui.UserSelect) -> None:
+        compteRendu = {}
+        reporterInstance = UserDbSetup(user = interaction.user)
+        reportedInstance = UserDbSetup(user = cible.values[0])
+        serverInstance = ServerDBSetup(server=interaction.guild)
+
+        if cible.values[0].bot:
+            await interaction.response.send_message("Tu ne peux pas sélectionner de bot!", ephemeral=True)
+            return
+
+        compteRendu["reporter"] = reporterInstance.user
+        compteRendu["reported"] = reportedInstance.user
+
+        embed = buildEmbed(title="Compte rendu d'abus", content=f"On est désolés d'apprendre qu'il t'est arrivé quelque chose {interaction.user.mention}, on va s'occuper de toi!\n\nSur quel support a eu lieu l'abus?", guild=interaction.guild, displayFooter=True)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True, view=reportButtons())
+        
+        msg = await interaction.original_response()
+        embed = buildEmbed(title="Compte rendu d'abus", content=f"Clique sur le bouton ci-dessous pour nous expliquer le problème.", guild=interaction.guild, displayFooter=True)
+
+        await asyncio.sleep(5)
+    
+        await msg.edit(embed=embed) 
+
+
+
+class reportButtons(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.cooldown = commands.CooldownMapping.from_cooldown(3,60, commands.BucketType.member)
+
+
+    @discord.ui.button(label="Rédiger mon compte rendu", style= discord.ButtonStyle.green,emoji= "🚀")
+    async def boutonrendu(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        bucket = self.cooldown.get_bucket(interaction.message)
+        retry = bucket.update_rate_limit()
+
+        if retry:
+            await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
+
+        else:
+            await interaction.response.send_modal()
+        
+
+    @discord.ui.button(label="Annuler", style= discord.ButtonStyle.blurple, custom_id= "persistent_view:gray",emoji= "⚠️")
+    async def boutonleave(self, interaction: discord.Interaction, button: discord.ui.Button):
+        bucket = self.cooldown.get_bucket(interaction.message)
+        retry = bucket.update_rate_limit()
+        view = None
+
+        if retry:
+            await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
+
+        else:
+            pass
+
+
 
 
 

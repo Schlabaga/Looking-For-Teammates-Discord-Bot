@@ -3,7 +3,7 @@ from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
 from pymongo.collection import ReturnDocument
-from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView
+from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUser
 import datetime
 import locale
 
@@ -255,7 +255,7 @@ async def setownerchannel(interaction: discord.Interaction, notifchannel : disco
 
 @bot.tree.command(name="ping", description="Renvoie la latence du bot")
 async def ping(interaction:discord.Interaction):
-    await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms")
+    await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms", view=SelectUser())
 
 
 @bot.tree.command(name="help", description="Commande d'aide du bot")
@@ -399,16 +399,22 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
                pénalitérank:discord.app_commands.Choice[int] = None):
     
     
+    
     user = interaction.user
     guild = interaction.guild
-    
     rankEmojiID = 0
+    
+    if codegroupe:
+        if len(codegroupe) != 6:
+            await interaction.response.send_message("Le code de groupe doit être composé de 6 caractères!", ephemeral=True)
+            return
+    
     if interaction.channel.category.id != 1020311165705916467:
         await interaction.response.send_message(f"Rends toi dans la catégorie 'Recherche Mate' pour utiliser cette commande!", ephemeral=True)
         return
 
     penalite = "Non"
-    title = f"{interaction.user.name} cherche un/des mate(s) pour jouer à Valorant! \n\n"
+    title = f"{interaction.user.name} a besoin de {nbjoueurs.value} mate{'s' if nbjoueurs.value > 1 else ''}!"
     rank = "Non renseigné - fais la commande </setrank:1213576606162092052>."
     vocalURL = "```Aucun salon vocal```"
     
@@ -443,12 +449,15 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     rankEmojiToUse = f"<:{rankEmoji.name}:{rankEmojiID}>"
 
 
-    embed = discord.Embed(title=title, description= interaction.user.mention, colour= discord.Colour.red(), timestamp=datetime.datetime.now())
-    embed.add_field(name=f"Joueurs recherchés", value=f"```{nbjoueurs.value}```", inline=True)
-    embed.add_field(name="Pénalité de rank", value=f"```{penalite}```", inline=True)
-    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
+    embed = discord.Embed(title=title,description= "Viens vite le rejoindre!", colour= discord.Colour.red(), timestamp=datetime.datetime.now())
     embed.add_field(name=f"{rankEmojiToUse} Rank", value=f"```{rankName.capitalize()}```", inline=True)
+    embed.add_field(name=f"Nombre", value=f"```{nbjoueurs.value} joueur{'s' if nbjoueurs.value > 1 else ''}```", inline=True)
+    embed.add_field(name="Pénalité", value=f"```{penalite}```", inline=True)
+    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
     embed.add_field(name=f"Salon vocal", value=f"{vocalURL}", inline=True)
+    embed.add_field(name="Contacter", value=f"{interaction.user.mention}", inline=True)
+    embed.set_footer(text=guild.name, icon_url=guild.icon)
+    
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     
 
@@ -457,7 +466,6 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
         return        
 
     await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**", embed=embed)
-
 
 
 
