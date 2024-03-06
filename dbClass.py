@@ -3,7 +3,7 @@ import discord
 import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
-import asyncio
+import asyncio, random
 embedsColor = discord.Colour.red()
 
 
@@ -359,24 +359,29 @@ class createTeamModal(ui.Modal, title= "Crée ta team!"):
         await interaction.response.send_message(content=msg, ephemeral=True)
 
 
-class comptRendu(ui.Modal, title= "Rédige ton compte rendu"):
+class compteRendu(ui.Modal, title= "Rédige ton compte rendu"):
 
-    def __init__(self):
+    def __init__(self,contexte, reporterUser: discord.User):
+
+        self.contexte = contexte
+        self.reporterUser = reporterUser
         super().__init__(timeout=None)
 
-    rendu = ui.TextInput(label='Décris ton problème', style=discord.TextStyle.long, placeholder="Donne le maximum de détails", max_length=500, min_length=100)
+    rendu = ui.TextInput(label='Décris ton problème', style=discord.TextStyle.long, placeholder="Donne le maximum de détails", max_length=500, min_length=75)
 
     async def on_submit(self, interaction: discord.Interaction):
 
         guild= interaction.guild
         utilisateur = interaction.user
-        embedResponse=discord.Embed(title=f'Signalement par {utilisateur.name}')
+        embedResponse=discord.Embed(title=f'Signalement de {self.reporterUser.name} par {utilisateur.name}')
         embedResponse.set_footer(text=guild.name,icon_url=guild.icon)
-
         embedResponse.add_field(name="Compte-rendu",value=self.rendu)
-        msg = interaction.original_response()
+        embedResponse.add_field(name="Contexte",value=self.contexte)
+        embedResponse.add_field(name="Abuseur",value=self.reporterUser.mention)
+        embedResponse.add_field(name = "Victime", value = utilisateur.mention)
+        embed = buildEmbed(title="Compte rendu d'abus", content=f"Merci pour ton compte rendu {interaction.user.mention}, on va s'occuper de ton problème le plus vite possible!", guild=interaction.guild, displayFooter=True)
 
-        await msg.edit(content="Bababba", ephemeral=True)
+        await interaction.response.edit_message(content="Signalement envoyé!", embed=embed, view=None)
 
 
 
@@ -390,7 +395,7 @@ class SelectUserToReport(discord.ui.View):
         cls=discord.ui.UserSelect,
         max_values=1,
         placeholder='Quel membre souhaites-tu sélectionner?',
-        custom_id= "persistent_view:selectsupport"
+        custom_id= "persistent_view:selectmembre"
     )
 
     @discord.ui.select(placeholder="Où a eu lieu l'abus?", min_values=1, max_values=1,options=[
@@ -412,22 +417,42 @@ class SelectUserToReport(discord.ui.View):
         compteRendu["reporter"] = reporterInstance.user
         compteRendu["reported"] = reportedInstance.user
 
-        embed = buildEmbed(title="Compte rendu d'abus", content=f"On est désolés d'apprendre qu'il t'est arrivé quelque chose {interaction.user.mention}, on va s'occuper de toi!\n\nSur quel support a eu lieu l'abus?", guild=interaction.guild, displayFooter=True)
+        embed = buildEmbed(title="Compte rendu d'abus", content=f"On est désolés d'apprendre qu'il t'est arrivé quelque chose {interaction.user.mention}, on va s'occuper de toi!\n\n**Sur quel support a eu lieu l'abus?**", guild=interaction.guild, displayFooter=True)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True, view=reportButtons())
-        
-        msg = await interaction.original_response()
-        embed = buildEmbed(title="Compte rendu d'abus", content=f"Clique sur le bouton ci-dessous pour nous expliquer le problème.", guild=interaction.guild, displayFooter=True)
+        await interaction.response.send_message(embed=embed,view=selectContext(), ephemeral=True)
 
-        await asyncio.sleep(5)
+
+class selectContext(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        #BUGS : confond avec la classe team
+
+    @discord.ui.select(placeholder="Où a eu lieu l'abus?", min_values=1, max_values=1,options=[
+        discord.SelectOption(label="Discord", value="discord"),
+        discord.SelectOption(label="In Game", value="ingame"),
+    ])
+    async def reportUserSelect(self, interaction: discord.Interaction, support: discord.ui.UserSelect) -> None:
+
+        embedSupport = buildEmbed(title="Compte rendu d'abus", content=f"Tu as sélectionné **{support.values[0]}**.\n\nMaintenant, tu n'as plus qu'à décrire ton problème via le bouton ci-dessous.", guild=interaction.guild, displayFooter=True)
+        await interaction.response.edit_message(embed = embedSupport, view = reportButtons(contexte=support.values[0], reporterUser=interaction.user))
+        return
+
+    @discord.ui.button(label="Annuler", style= discord.ButtonStyle.blurple, custom_id= "persistent_view:annuler",emoji= "⚠️")
+    async def annuler(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = buildEmbed(title="Compte rendu d'abus", content=f"Tu as bien annulé ton report.", guild=interaction.guild, displayFooter=True)
+        await interaction.response.edit_message(embed=embed, view=None)
+
+
     
-        await msg.edit(embed=embed) 
-
 
 
 class reportButtons(discord.ui.View):
 
-    def __init__(self):
+    def __init__(self, contexte, reporterUser: discord.User):
+        self.contexte = contexte
+        self.reporterUser = reporterUser
+        
         super().__init__(timeout=None)
         self.cooldown = commands.CooldownMapping.from_cooldown(3,60, commands.BucketType.member)
 
@@ -437,16 +462,18 @@ class reportButtons(discord.ui.View):
 
         bucket = self.cooldown.get_bucket(interaction.message)
         retry = bucket.update_rate_limit()
+        view = self
 
         if retry:
             await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
 
         else:
-            await interaction.response.send_modal()
-        
 
-    @discord.ui.button(label="Annuler", style= discord.ButtonStyle.blurple, custom_id= "persistent_view:gray",emoji= "⚠️")
-    async def boutonleave(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_modal(compteRendu(contexte=self.contexte, reporterUser=self.reporterUser))
+
+
+    @discord.ui.button(label="Annuler", style= discord.ButtonStyle.blurple, custom_id= "persistent_view:annuler",emoji= "⚠️")
+    async def boutonAnnuler(self, interaction: discord.Interaction, button: discord.ui.Button):
         bucket = self.cooldown.get_bucket(interaction.message)
         retry = bucket.update_rate_limit()
         view = None
@@ -455,8 +482,8 @@ class reportButtons(discord.ui.View):
             await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
 
         else:
-            pass
-
+            embed = buildEmbed(title="Compte rendu d'abus", content=f"Tu as bien annulé ton report.", guild=interaction.guild, displayFooter=True)
+            await interaction.response.edit_message(embed=embed, view=None)
 
 
 
@@ -985,6 +1012,13 @@ class ServerDBSetup:
         return listCategoriesVC
 
 
+    def isInServer(self, user: discord.User):
+            
+        if user in self.server.members:
+            return True
+        
+        return False
+
 
 
 TeamDefaultDict = {}
@@ -996,6 +1030,7 @@ class Team:
         self.server = server
         self.user = user
         self.teamTag = teamTag
+        self.listeMembres = []
         if teamTag:
             self.db = dbServer.teams.find_one({"teamTag":teamTag.upper()})
             self.teamTag = teamTag.upper()
@@ -1027,6 +1062,25 @@ class Team:
         
         return False
 
+
+    async def makeRandomChef(self,userID):
+        self.getTeamMembers()
+        listeMembres = self.listeMembres
+        
+        if len(listeMembres) == 0 or (len(listeMembres) == 1 and listeMembres[0] == userID):
+            self.deleteTeam()
+            embed = buildEmbed(title = "Team supprimée", content = f"La team {self.teamTag} a été supprimée car elle n'avait plus de membres!", guild=self.server, displayFooter=True)
+            self.sendNotifToServer(embed=embed)
+            return
+
+        newOwner = random.choice(listeMembres)
+        self.changeTeamOwner(newOwner=newOwner)
+        embed = buildEmbed(title = "Nouveau chef de team", content = f"{newOwner.mention} est le nouveau chef de la team {self.teamTag}!", guild=self.server, displayFooter=True)
+        await self.sendNotifEmbedToTeam(embed=embed)
+        await self.sendNotifToServer(embed=embed)
+                
+        return newOwner
+
     def TeamList(self):
 
         teamChain = ""
@@ -1038,10 +1092,13 @@ class Team:
             return None
 
         for i in listeFiles:
-
+            teamOwner = self.server.get_member(i["teamOwner"])
+            if teamOwner not in self.server.members:
+                self.makeRandomChef(teamOwner)
+                
             teamName = i["teamName"].capitalize()
             teamTag = i["teamTag"].upper()
-            teamOwner = self.server.get_member(i["teamOwner"])
+            
             teamCapacite = len(i["teamMembers"])
             teamChain = f"{teamChain}\n・`{teamName}` - {teamOwner.mention} - {teamTag} `({teamCapacite}/5)`"
 
@@ -1146,25 +1203,32 @@ class Team:
 
     async def getTeamMembers(self):
 
-        listeMembres=  ""
+        listeMembresStr=  ""
         nb = 0
+        listeMembres = []
 
         for member in self.db["teamMembers"]:
+            listeMembres.append(member[1])
+            try:
+                memberFound = self.server.get_member(member[1])
+                
+            except Exception as e:
+                print(str(e))
+                pass
             
-            memberFound = self.server.get_member(member[1])
             userInstance = UserDbSetup(user = memberFound)
             
             nb+=1
             
             dateExacte = format_date_francais(member[2])
             if userInstance.isTeamOwner():
-                listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} **(Chef)** - {userInstance.getRank()} - {dateExacte}"
+                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} **(Chef)** - {userInstance.getRank()} - {dateExacte}"
                 
             else: 
-                listeMembres = f"{listeMembres}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
+                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
 
- 
-        return listeMembres
+        return listeMembresStr
+        self.listeMembres = listeMembres
         
     async def memberJoinTeam(self):
 
@@ -1316,11 +1380,12 @@ class Team:
         serverInstance.getNotifChannel()
 
 
+    def maintenance(self):
+
+        listeTeamsUsers = dbUser.user.find({"team": {"$ne": None}})
         
-
-        
-                
-
-
-
+        for user in listeTeamsUsers:
+            if self.server.get_member(user["userID"]) == None:
+                if UserDbSetup(user=user["userID"]):
+                    self.makeRandomChef(user["userID"])
 

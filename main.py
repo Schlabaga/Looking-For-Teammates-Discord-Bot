@@ -259,6 +259,22 @@ async def ping(interaction:discord.Interaction):
     await interaction.response.send_message(f"Pong! Latence: {bot.latency*1000:.2f}ms", view=SelectUserToReport())
 
 
+@bot.tree.command(name="sendreportmodal", description="Envoie le modal de report")
+@app_commands.checks.has_permissions(administrator=True)
+async def send(interaction:discord.Interaction, channel:discord.TextChannel = None):
+    
+    embed = buildEmbed(title="Report un joueur", content="Sélectionne le membre que tu veux reporter", guild=interaction.guild,
+                    imageurl= "https://media3.giphy.com/media/bYaKuPHwBnrrgtiVxU/giphy.gif?cid=6c09b952lv3j6xq1qwgtr5ndfgt9i9w56yoygui1dmu1zkr4&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g")
+
+    
+    if not channel:
+        await interaction.response.send_message(embed=embed, view=SelectUserToReport())
+        return
+    
+    await interaction.channel.send(embed=embed, view=SelectUserToReport())
+
+
+
 @bot.tree.command(name="help", description="Commande d'aide du bot")
 async def help(interaction:discord.Interaction):
 
@@ -399,8 +415,6 @@ async def myteam(interaction: discord.Interaction):
 async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.Choice[int], codegroupe:str = None, 
                pénalitérank:discord.app_commands.Choice[int] = None):
     
-    
-    
     user = interaction.user
     guild = interaction.guild
     rankEmojiID = 0
@@ -441,8 +455,7 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
         vocalURL = user.voice.channel.jump_url
     
     except:
-        await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
-        return
+        pass
         
     rankName = rank.replace("`","")
     rankEmojiID = userInstance.rankEmojiID
@@ -454,7 +467,7 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     embed.add_field(name=f"{rankEmojiToUse} Rank", value=f"```{rankName.capitalize()}```", inline=True)
     embed.add_field(name=f"Nombre", value=f"```{nbjoueurs.value} joueur{'s' if nbjoueurs.value > 1 else ''}```", inline=True)
     embed.add_field(name="Pénalité", value=f"```{penalite}```", inline=True)
-    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
+    embed.add_field(name="Code de groupe", value="```ansi\u001b[0;40m\u001b[1;32mThat's some cool formatted text right?```", inline=True)
     embed.add_field(name=f"Salon vocal", value=f"{vocalURL}", inline=True)
     embed.add_field(name="Contacter", value=f"{interaction.user.mention}", inline=True)
     embed.set_footer(text=guild.name, icon_url=guild.icon)
@@ -462,12 +475,12 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     
 
-    if user.voice is None:
+
+    await interaction.response.send_message( embed=embed)
+"""    if user.voice is None:
         await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
-        return        
-
-    await interaction.response.send_message(f"--> **{user.voice.channel.jump_url}**", embed=embed)
-
+        return
+"""
 
 
 @bot.tree.command(name="jointeam", description="Formule une demande pour rejoindre une team")
