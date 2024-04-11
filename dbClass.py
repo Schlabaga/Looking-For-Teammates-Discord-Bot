@@ -3,7 +3,7 @@ import discord
 import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
-import asyncio, random
+import random
 embedsColor = discord.Colour.red()
 
 
@@ -184,7 +184,7 @@ class deleteTeamConfirmation(discord.ui.View):
 
         # notifs = await bot.get_channel()
         # messageChannel = await notifs.send(embed=embed)
-        message = await interaction.response.send_message(embed=embed)
+        message = await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 
@@ -1081,7 +1081,7 @@ class Team:
                 
         return newOwner
 
-    def TeamList(self):
+    async def TeamList(self):
 
         teamChain = ""
         
@@ -1092,7 +1092,7 @@ class Team:
             return None
 
         for i in listeFiles:
-            teamOwner = self.server.get_member(i["teamOwner"])
+            teamOwner = await self.server.get_member(i["teamOwner"])
             if teamOwner not in self.server.members:
                 self.makeRandomChef(teamOwner)
                 
@@ -1101,7 +1101,7 @@ class Team:
             
             teamCapacite = len(i["teamMembers"])
             teamChain = f"{teamChain}\n・`{teamName}` - {teamOwner.mention} - {teamTag} `({teamCapacite}/5)`"
-
+        print(teamChain)
         return teamChain
 
 

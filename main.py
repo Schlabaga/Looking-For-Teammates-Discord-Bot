@@ -5,7 +5,7 @@ from discord.ext import commands
 from pymongo.collection import ReturnDocument
 from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUserToReport
 import datetime
-import locale
+import locale, asyncio
 
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
@@ -357,7 +357,7 @@ async def resolvedb(interaction:discord.Interaction):
 
 
 @bot.tree.command(name="resolvememberdb", description="Résout les pbs de la base de donnée d'un utilisateur")
-@app_commands.guild_only()
+@app_commands.guild_only()  
 @app_commands.checks.has_permissions(administrator=True)
 async def resolvedb(interaction:discord.Interaction, cible: discord.Member = None):
 
@@ -374,7 +374,8 @@ async def resolvedb(interaction:discord.Interaction, cible: discord.Member = Non
 async def teamlist(interaction: discord.Interaction):
 
     guild = interaction.guild
-    teamInstance = Team(user=None, teamTag=None, server=interaction.guild)
+    teamInstance =  Team(user=None, teamTag=None, server=interaction.guild)
+    
     teamListEmbed = discord.Embed(title=f"Liste des teams", description= teamInstance.TeamList())
     teamListEmbed.set_footer(text=guild.name, icon_url=guild.icon)
     await interaction.response.send_message(embed= teamListEmbed)
@@ -419,17 +420,20 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     guild = interaction.guild
     rankEmojiID = 0
     
-    if codegroupe:
-        if len(codegroupe) != 6:
-            await interaction.response.send_message("Le code de groupe doit être composé de 6 caractères!", ephemeral=True)
-            return
-    
     if interaction.channel.category.id != 1020311165705916467:
         await interaction.response.send_message(f"Rends toi dans la catégorie 'Recherche Mate' pour utiliser cette commande!", ephemeral=True)
         return
+    if codegroupe:
+        if len(codegroupe) != 6:
+            await interaction.response.send_message("Le code de groupe doit être composé de 6 caractères! Si tu ne souhaites pas en mettre, enlève le champs 'codegroupe'.", ephemeral=True)
+            return
+
 
     penalite = "Non"
     title = f"{interaction.user.name} a besoin de {nbjoueurs.value} mate{'s' if nbjoueurs.value > 1 else ''}!"
+    if nbjoueurs.value == 4:
+        title = f"Je suis last!"
+        
     rank = "Non renseigné - fais la commande </setrank:1213576606162092052>."
     vocalURL = "```Aucun salon vocal```"
     
@@ -457,6 +461,7 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     except:
         pass
         
+
     rankName = rank.replace("`","")
     rankEmojiID = userInstance.rankEmojiID
     rankEmoji:discord.Emoji = bot.get_emoji(rankEmojiID)
@@ -467,16 +472,25 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     embed.add_field(name=f"{rankEmojiToUse} Rank", value=f"```{rankName.capitalize()}```", inline=True)
     embed.add_field(name=f"Nombre", value=f"```{nbjoueurs.value} joueur{'s' if nbjoueurs.value > 1 else ''}```", inline=True)
     embed.add_field(name="Pénalité", value=f"```{penalite}```", inline=True)
-    embed.add_field(name="Code de groupe", value="```ansi\u001b[0;40m\u001b[1;32mThat's some cool formatted text right?```", inline=True)
+    embed.add_field(name="Code de groupe", value=f"```{codegroupe}```", inline=True)
     embed.add_field(name=f"Salon vocal", value=f"{vocalURL}", inline=True)
     embed.add_field(name="Contacter", value=f"{interaction.user.mention}", inline=True)
     embed.set_footer(text=guild.name, icon_url=guild.icon)
     
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     
+    if vocalURL != "```Aucun salon vocal```":
+        boutonVocal = discord.ui.Button(label="Rejoindre le salon vocal", style=discord.ButtonStyle.link, url=vocalURL)
+        view = discord.ui.View()
+        view.add_item(boutonVocal)
+        await interaction.response.send_message(embed=embed, view=view)
+        return
+    
+    else:
+        await interaction.response.send_message(embed=embed)
+        return
+    
 
-
-    await interaction.response.send_message( embed=embed)
 """    if user.voice is None:
         await interaction.response.send_message("Tu n'es pas dans un salon vocal!", ephemeral=True)
         return
@@ -550,9 +564,9 @@ async def deleteteam(interaction: discord.Interaction):
     if userInstance.isTeamOwner():
         teamTag= userInstance.getTeamTag()
         await interaction.response.send_message(view=deleteTeamConfirmation(teamTag=teamTag, server=interaction.guild, teamOwner=interaction.user))
-
+        return
     else:
-        await interaction.response.send_message("Tu n'es pas owner d'une quelconque team, tu ne peux donc pas en supprimer une!", ephemeral=True)
+        await interaction.response.send_message("Tu ne possèdes aucune team.", ephemeral=True)
 
 
 @bot.tree.command(name="setnewowner", description="Donne les commandes de ta team à quelqu'un d'autre (si tu es propriétaire)")
