@@ -3,9 +3,8 @@ from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
 from pymongo.collection import ReturnDocument
-from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUserToReport
+from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUserToReport, supprInviteMate
 import datetime
-import locale, asyncio
 
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
@@ -86,11 +85,11 @@ async def on_voice_state_update(member:discord.Member, before, after):
     
     guild:discord.Guild= member.guild
     channel = before.channel if before.channel is not None else after.channel
-    
-    if channel.id != 1213130829476143134:
+
+    if channel.id != 1235553876136951878:
         return
     
-    if member.voice.channel.id == 1213130829476143134:
+    else:
         salonVocal = await guild.create_voice_channel(name=f'Salon de {member.global_name}', user_limit=5, category= guild.get_channel(1020311168167972944))
         await member.move_to(salonVocal)
             
@@ -99,6 +98,7 @@ async def on_voice_state_update(member:discord.Member, before, after):
             
         if before.channel is not None and after.channel is None:
             print(f'{member} a quitté un salon vocal.')
+
 
 
 
@@ -209,7 +209,9 @@ async def config(interaction:discord.Interaction, teampanelchannel: discord.Text
     if gamevccategorie:
         serverInstance.updateServerDBList(listName="gamesVcCategories",elt=gamevccategorie.id, action="$addToSet") #$addToSet permet d'ajouter seulement si l'elt n'est pas dans la liste
     
-    await teampanelchannel.send(view=addMemberTeamPanel())
+    
+    addMemberEmbed = buildEmbed(title="Ajouter un membre à ta team", content="Sélectionne un membre à ajouter dans ton incroyable team!",imageurl="https://i.pinimg.com/originals/10/be/fd/10befd3b64e1aafb192131771f236511.gif" ,guild=interaction.guild, displayFooter=True)
+    await teampanelchannel.send(embed=addMemberEmbed, view=addMemberTeamPanel())
     await interaction.response.send_message("les données ont bien été prises en comptes.", ephemeral=True)
 
 
@@ -242,6 +244,8 @@ async def setteamcategory(interaction: discord.Interaction, teamcategory: discor
     serverInstance.Update("teamCategory", teamcategory.id)
 
     await interaction.response.send_message(f"La catégorie `{teamcategory.name}` a bien été défini comme salon pour accueilir les vocs des teams.")
+
+
 
 @bot.tree.command(name="setnotifchannel", description="Définit le salon des notifications des teams")
 @app_commands.guild_only()
@@ -374,7 +378,7 @@ async def resolvedb(interaction:discord.Interaction, cible: discord.Member = Non
 async def teamlist(interaction: discord.Interaction):
 
     guild = interaction.guild
-    teamInstance =  Team(user=None, teamTag=None, server=interaction.guild)
+    teamInstance =  await Team(user=None, teamTag=None, server=interaction.guild)
     
     teamListEmbed = discord.Embed(title=f"Liste des teams", description= teamInstance.TeamList())
     teamListEmbed.set_footer(text=guild.name, icon_url=guild.icon)
@@ -434,7 +438,7 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
     if nbjoueurs.value == 4:
         title = f"Je suis last!"
         
-    rank = "Non renseigné - fais la commande </setrank:1213576606162092052>."
+    rank = "Non renseigné"
     vocalURL = "```Aucun salon vocal```"
     
     userInstance = UserDbSetup(user=interaction.user)
@@ -486,8 +490,10 @@ async def mate(interaction: discord.Interaction, nbjoueurs:discord.app_commands.
         await interaction.response.send_message(embed=embed, view=view)
         return
     
+    
     else:
-        await interaction.response.send_message(embed=embed)
+        viewSupprMessage = supprInviteMate(interactionBase=interaction)
+        await interaction.response.send_message(embed=embed, view=viewSupprMessage)
         return
     
 

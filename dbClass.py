@@ -99,6 +99,24 @@ class DecisionTeamOwner(discord.ui.View):
         await interaction.response.send_message(embed=embed)
 
 
+class supprInviteMate(discord.ui.View):
+
+    def __init__(self, interactionBase):
+        super().__init__(timeout=3600)
+        self.interactionBase:discord.Interaction = interactionBase
+
+    @discord.ui.button(label="Supprimer l'invitation", style=discord.ButtonStyle.grey, emoji=nonValidEmoji)
+    async def on_accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        
+        if interaction.user != self.interactionBase.user:
+            await interaction.response.send_message("Tu n'es pas concerné(e) par cette interaction, désolé!", ephemeral=True)
+            return
+
+        self.children[0].disabled = True
+        await self.interactionBase.delete_original_response()
+
+
+
 class decisionTeamMember(discord.ui.View):
 
     def __init__(self, teamTag, memberUser: discord.Member, NotifChannel: discord.TextChannel):
@@ -1221,11 +1239,16 @@ class Team:
             nb+=1
             
             dateExacte = format_date_francais(member[2])
+            userRank = userInstance.getRank()
+            if userRank == None:
+                userRank = "Pas de rank"
+                
+                
             if userInstance.isTeamOwner():
-                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} **(Chef)** - {userInstance.getRank()} - {dateExacte}"
+                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} **(Chef)** - {userRank} - {dateExacte}"
                 
             else: 
-                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} - {userInstance.getRank()} - {dateExacte}"
+                listeMembresStr = f"{listeMembresStr}\n{nb}. {memberFound.mention} - {userRank} - {dateExacte}"
 
         return listeMembresStr
         self.listeMembres = listeMembres
@@ -1372,8 +1395,7 @@ class Team:
                         usersPresents.append(user)
 
         return userAbsents, usersPresents
-
-
+    
     async def sendNotifEmbedToTeam(self, content):
     
         serverInstance = ServerDBSetup(server=self.server)
