@@ -353,6 +353,16 @@ async def setmain(interaction: discord.Interaction, main: discord.app_commands.C
     userInstance.Update("main", main.value)
     await interaction.response.send_message(f"Ton main est maintenant `{main.name}`!", ephemeral=True)
 
+@bot.tree.command(name="setupcontent", description="Setup les salons d'aide (maps et agents)")
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+async def setupcontent(interaction: discord.Interaction, channelmaps:discord.TextChannel, channelagents:discord.TextChannel):
+
+    serverInstance = ServerDBSetup(server=interaction.guild)
+    serverInstance.Update("channelMaps", channelmaps.id)
+    serverInstance.Update("channelAgents", channelagents.id)
+
+    await interaction.response.send_message("Les salons d'aide ont bien été définis!", ephemeral=True)
 
 
 

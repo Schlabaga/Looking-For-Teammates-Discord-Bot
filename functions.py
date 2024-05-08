@@ -6,6 +6,8 @@ class SyncApi(): # PERMET DE SYNC LE BOT AVEC L'API VALORANT ET DE METTRE A JOUR
     def __init__(self):
         self.agentDict = {}
         self.skinDict = {}
+        self.mapDict = {}
+        self.bundleDict = {}
     
     def get_all_agents(self):
         
@@ -58,7 +60,7 @@ class SyncApi(): # PERMET DE SYNC LE BOT AVEC L'API VALORANT ET DE METTRE A JOUR
                 self.skinDict["chromas"] = skin["chromas"]
 
                 print(self.skinDict)
-                # dbValorant.skins.update_one({"uuid": skin["uuid"]}, {"$set": self.skinDict}, upsert=True)
+                dbValorant.skins.update_one({"uuid": skin["uuid"]}, {"$set": self.skinDict}, upsert=True)
 
             return data
 
@@ -67,7 +69,68 @@ class SyncApi(): # PERMET DE SYNC LE BOT AVEC L'API VALORANT ET DE METTRE A JOUR
             return None
         
         
+    def get_all_maps(self):
+        url = "https://valorant-api.com/v1/maps"
+        params = {"language": "fr-FR"}
+        response = requests.get(url=url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            for map in data["data"]:
+                self.mapDict = {}
+                self.mapDict["uuid"] = map["uuid"]
+                self.mapDict["displayName"] = map["displayName"]
+                self.mapDict["tacticalDescription"] = map["tacticalDescription"]
+                self.mapDict["narrativeDescription"] = map["narrativeDescription"]
+                self.mapDict["coordinates"] = map["coordinates"]
+                self.mapDict["displayIcon"] = map["displayIcon"]
+                self.mapDict["premierBackgroundImage"] = map["premierBackgroundImage"]
+                self.mapDict["stylizedBackgroundImage"] = map["stylizedBackgroundImage"]
+                self.mapDict["splash"] = map["splash"]
+
+                print(self.mapDict)
+                dbValorant.maps.update_one({"uuid": map["uuid"]}, {"$set": self.mapDict}, upsert=True)
+
+            return data
+
+        else:
+            print("Failed to retrieve maps. Status code:", response.status_code)
+            return None
+
+    def get_all_bundles(self):
+        url = "https://valorant-api.com/v1/bundles"
+        params = {"language": "fr-FR"}
+        response = requests.get(url=url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            for bundle in data["data"]:
+                self.bundleDict = {}
+                self.bundleDict["uuid"] = bundle["uuid"]
+                self.bundleDict["displayName"] = bundle["displayName"]
+                self.bundleDict["description"] = bundle["description"]
+                self.bundleDict["promoDescription"] = bundle["promoDescription"]
+                self.bundleDict["extraDescription"] = bundle["extraDescription"]  
+                self.bundleDict["displayIcon"] = bundle["displayIcon"]
+                self.bundleDict["displayIcon2"] = bundle["displayIcon2"]
+                self.bundleDict["logoIcon"] = bundle["logoIcon"]
+                self.bundleDict["verticalPromoImage"] = bundle["verticalPromoImage"]
+
+                print(self.bundleDict)
+                dbValorant.bundles.update_one({"uuid": bundle["uuid"]}, {"$set": self.bundleDict}, upsert=True)
+
+            return data
+
+        else:
+            print("Failed to retrieve skins. Status code:", response.status_code)
+            return None
+        
+        
+        
+
 valorantSync =  SyncApi()
 
 valorantSync.get_all_agents()
-valorantSync.get_all_skins()
+# valorantSync.get_all_skins()
+# valorantSync.get_all_maps()
+# valorantSync.get_all_bundles()

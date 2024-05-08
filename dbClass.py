@@ -1,4 +1,4 @@
-from config import dbBot, dbServer, dbUser, rankDict
+from config import dbBot, dbServer, dbUser, rankDict, dbValorant
 import discord
 import datetime as dt, locale
 from discord.ext import commands
@@ -280,8 +280,6 @@ class OuiNonPanel(discord.ui.View):
         message = await interaction.response.send_message(embed=embed)
 
 
-
-
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.red, emoji=nonValidEmoji)
     async def on_deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
@@ -462,9 +460,6 @@ class selectContext(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=None)
 
 
-    
-
-
 class reportButtons(discord.ui.View):
 
     def __init__(self, contexte, reporterUser: discord.User):
@@ -502,8 +497,6 @@ class reportButtons(discord.ui.View):
         else:
             embed = buildEmbed(title="Compte rendu d'abus", content=f"Tu as bien annulé ton report.", guild=interaction.guild, displayFooter=True)
             await interaction.response.edit_message(embed=embed, view=None)
-
-
 
 
 class createTeamView(discord.ui.View):
@@ -592,10 +585,6 @@ class createTeamView(discord.ui.View):
             
 
 
-
-
-
-
 UserDefaultDict=  {"rank":None, "main":None, "available":False, "team":None, "teamOwner":False, "isInServer":True, "pending":False, "profile": False, "isOwnerOfVocID":None }
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
@@ -640,6 +629,45 @@ def GetMainUser(interactionUser, cibleUser):
         return cibleUser
 
     return interactionUser
+
+
+class contentSetup:
+    
+    def __init__(self):
+        self.db = dbValorant
+
+    def get_all_agents(self):
+        return self.db.agents.find()
+        
+    def get_all_maps(self):
+        return self.db.maps.find()
+    
+    def get_all_skins(self):
+        return self.db.skins.find()
+    
+    def get_all_bundles(self):
+        return self.db.bundles.find()
+    
+    def post_all_agents(self):
+        
+        for agent in self.get_all_agents():     
+            title = agent["displayName"]    
+            description = agent["description"]
+            image = agent["displayIcon"]
+            
+            abilite1 = agent["abilities"][0]
+            abilite2 = agent["abilities"][1]
+            abilite3 = agent["abilities"][2]
+            abilite4 = agent["abilities"][3]
+            
+            role = agent["role"]["displayName"]
+        
+            embed = discord.Embed(title=title, description=description, color=embedsColor)
+            embed.add_field(name="Nom", value=title)
+            embed.add_field(name="Description", value=description)
+            embed.add_field(name="Role", value=role)
+            embed.set_footer(icon_url=agent["displayIcon"])    
+            embed.set_thumbnail(url=image)
 
 
 class UserDbSetup:
@@ -1188,7 +1216,7 @@ class Team:
 
             else:
                 return "1. Le nom et le tag de la team ne doivent contenir que des lettres (pas d'espace etc)\n2. La longueur du tag doit être inférieure à 5 caractères et celle du nom de la team doit être inférieure à 15 caractères"
-
+    
 
     async def assignTeamRole(self):
 
