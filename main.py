@@ -61,6 +61,12 @@ async def on_member_join(member:discord.Member):
     userSetup.setDefaultDB()
 
 
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CommandOnCooldown):
+        await interaction.response.send_message(f"Tu es en cooldown! Réessaie dans {error.retry_after:.0f} secondes", ephemeral=True)
+    else:
+        raise error
 
 @bot.event
 async def on_member_remove(member: discord.Member):
@@ -72,6 +78,7 @@ async def on_member_remove(member: discord.Member):
         teamInstance.memberLeaveTeam()
     
     userSetup.Update(field="isInServer", content=False)
+
 
 
 @bot.event
@@ -399,7 +406,7 @@ async def myteam(interaction: discord.Interaction):
         responseEmbed = discord.Embed(title=f"{team[2].capitalize()} - {team[0]}", description=team[1], timestamp=datetime.datetime.now())
         responseEmbed.set_footer(icon_url=interaction.guild.icon, text=interaction.guild.name)
 
-        return await interaction.response.send_message(embed=responseEmbed, ephemeral=True)
+        return await interaction.response.send_message(embed=responseEmbed)
 
     await interaction.response.send_message("Tu n'es dans aucune team! Fais </jointeam:1090990838131200091> pour en rejoindre une!", ephemeral=True)
 
@@ -407,6 +414,7 @@ async def myteam(interaction: discord.Interaction):
 
 @bot.tree.command(name="mate", description="Crée une invite dans ton salon vocal et paramètre-la")
 @app_commands.guild_only()
+@app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @app_commands.choices(pénalitérank =[
     discord.app_commands.Choice(name="Oui (-25%)", value=1),
     discord.app_commands.Choice(name="Non", value=0)])
@@ -598,6 +606,8 @@ async def setnewowner(interaction: discord.Interaction, newowner: discord.Member
 @app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
 async def setcreateteammodal(interaction:discord.Interaction, createteamchannel: discord.TextChannel):
+
+    creationTeamEmbed = buildEmbed(title="Création de team", content="Clique sur le bouton pour créer ta team!", imageurl="https://media1.tenor.com/images/7")
 
     await createteamchannel.send(view=createTeamView())
     await interaction.response.send_message(f"Le salon {createteamchannel.name} a bien été défini comme salon de création de teams!", ephemeral=True)

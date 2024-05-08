@@ -16,6 +16,7 @@ MongoClient = pymongo.MongoClient(MONGO_CLIENT_KEY)
 dbUser = MongoClient.userconfig
 dbBot = MongoClient.botconfig
 dbServer = MongoClient.serverconfig
+dbValorant = MongoClient.valorantconfig
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 
