@@ -631,6 +631,37 @@ def GetMainUser(interactionUser, cibleUser):
     return interactionUser
 
 
+class EnSavoirPlusGuideButton(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.cooldown = commands.CooldownMapping.from_cooldown(3,60, commands.BucketType.member)
+        self.db = dbValorant
+
+    @discord.ui.button(label="En savoir plus", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:enSavoirPlusButton" )
+    async def enSavoirPlus(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        bucket = self.cooldown.get_bucket(interaction.message)
+        retry = bucket.update_rate_limit()
+        view = self
+        message = interaction.message
+
+        if retry:
+            await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
+
+        else:
+            
+            guidePlus = contentSetup()
+            agent = self.db.agents.find_one({"channelID":message.channel.id})
+            agentID = agent["uuid"]
+            
+            abilites = await guidePlus.get_second_page_maps(message=interaction.message, interaction=interaction, agentID=agentID)
+            
+            await interaction.response.send_message(embed=abilites, ephemeral=True)
+            
+            return
+
+
 class contentSetup:
     
     def __init__(self):
@@ -648,26 +679,84 @@ class contentSetup:
     def get_all_bundles(self):
         return self.db.bundles.find()
     
-    def post_all_agents(self):
+    def add_gif(self):
         
-        for agent in self.get_all_agents():     
-            title = agent["displayName"]    
-            description = agent["description"]
-            image = agent["displayIcon"]
+        for agent in self.get_all_agents():
             
-            abilite1 = agent["abilities"][0]
-            abilite2 = agent["abilities"][1]
-            abilite3 = agent["abilities"][2]
-            abilite4 = agent["abilities"][3]
+            agentName = agent["displayName"]
+            gif = input(f"Entrez le lien du gif pour {agentName} :")
+            
+            if gif== "N":
+                pass
+            
+            if gif == "stop":
+                break
+            
+            else:
+                id = agent["uuid"]
+                base = self.db.agents.update_one({"uuid":id}, {"$set":{"gif":gif}}, upsert=True)
+    
+
+    async def post_all_agents(self, guild:discord.Guild):
+        
+        self.guild = guild
+        category = await self.guild.create_category("Agents")
+        ServerDBSetup(guild).Update("catAgents", category.id)
+        prefixAgent = "🚀・"
+        
+        for agent in self.get_all_agents():
+            title = agent["displayName"]
+            description = agent["description"]
+            image = agent["gif"]
+            tags = agent["charactrerTags"]
+            agentID = agent["uuid"]
+            
+            tagsString = ""
+            if tags != None:
+                for tag in tags:
+                    tagsString+= f"{tag}\n"
+            else:
+                tagsString = "Aucun tag"
+            
+            if agent["abilities"] == None:
+                return None
             
             role = agent["role"]["displayName"]
         
             embed = discord.Embed(title=title, description=description, color=embedsColor)
             embed.add_field(name="Nom", value=title)
-            embed.add_field(name="Description", value=description)
+            embed.add_field(name="Tags", value=tagsString)
             embed.add_field(name="Role", value=role)
             embed.set_footer(icon_url=agent["displayIcon"])    
-            embed.set_thumbnail(url=image)
+            embed.set_image(url=image)
+            embed.set_thumbnail(url=agent["displayIcon"])
+            
+            channel= await self.guild.create_text_channel(name=f"{prefixAgent}{title}", topic=description, category=category)
+            agent = self.db.agents.update_one({"displayName":title}, {"$set":{"channelID":channel.id}}, upsert=True)
+            msg = await channel.send(embed=embed, view=EnSavoirPlusGuideButton())
+            
+        
+        
+    async def get_second_page_maps(self, message:discord.Message, interaction:discord.Interaction, agentID):
+        
+        embed = discord.Embed(title="En savoir plus", color=embedsColor)
+        agent = self.db.agents.find_one({"uuid":agentID})
+        
+        if "abilities" in agent.keys():
+
+            for ability in agent["abilities"]:
+                name = ability["displayName"]
+                desc = ability["description"]
+                
+                embed.add_field(name=name, value=f"```{desc}```", inline=False)
+                
+        # embed.add_field("Tutoriel vidéo", value=None)
+        # embed.add_field("Tutoriel Valorant", value=None)
+        embed.set_footer(icon_url=agent["displayIcon"], text=agent["displayName"])
+        
+        return embed
+
+    
 
 
 class UserDbSetup:
@@ -1147,7 +1236,7 @@ class Team:
             
             teamCapacite = len(i["teamMembers"])
             teamChain = f"{teamChain}\n・`{teamName}` - {teamOwner.mention} - {teamTag} `({teamCapacite}/5)`"
-        print(teamChain)
+
         return teamChain
 
 
@@ -1163,7 +1252,7 @@ class Team:
     async def deleteTeam(self):
 
         for i in dbUser.user.find({"team":self.teamTag.upper()}):
-            print(i)
+
             memberID = i["userID"]
             userNick = self.server.get_member(memberID)
             newNickName = userNick.name.replace(f'[{self.teamTag}]', "")
@@ -1354,7 +1443,7 @@ class Team:
 
     async def getTeamOwner(self):
         result = self.db["teamOwner"]
-        print(result)
+
         return result
 
     

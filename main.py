@@ -3,7 +3,8 @@ from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
 from pymongo.collection import ReturnDocument
-from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, deleteTeamConfirmation, createTeamView, SelectUserToReport, supprInviteMate
+from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed
+from dbClass import deleteTeamConfirmation, createTeamView, SelectUserToReport, supprInviteMate, contentSetup, EnSavoirPlusGuideButton
 import datetime
 
 
@@ -23,6 +24,7 @@ class Bot(commands.Bot):
         self.add_view(addMemberTeamPanel())
         self.add_view(createTeamView())
         self.add_view(SelectUserToReport())
+        self.add_view(EnSavoirPlusGuideButton())
 
     async def on_ready(self):
 
@@ -353,18 +355,29 @@ async def setmain(interaction: discord.Interaction, main: discord.app_commands.C
     userInstance.Update("main", main.value)
     await interaction.response.send_message(f"Ton main est maintenant `{main.name}`!", ephemeral=True)
 
+
+
+
 @bot.tree.command(name="setupcontent", description="Setup les salons d'aide (maps et agents)")
 @app_commands.guild_only()
+@app_commands.choices(type = [
+    discord.app_commands.Choice(name="Maps", value="maps"),
+    discord.app_commands.Choice(name="Agents", value="agents")
+])
 @app_commands.checks.has_permissions(administrator=True)
-async def setupcontent(interaction: discord.Interaction, channelmaps:discord.TextChannel, channelagents:discord.TextChannel):
+async def setupcontent(interaction: discord.Interaction, type: discord.app_commands.Choice[str]):
 
     serverInstance = ServerDBSetup(server=interaction.guild)
-    serverInstance.Update("channelMaps", channelmaps.id)
-    serverInstance.Update("channelAgents", channelagents.id)
+    guideInstance  = contentSetup()
+    await interaction.response.defer(thinking=True, ephemeral=True)    
 
-    await interaction.response.send_message("Les salons d'aide ont bien été définis!", ephemeral=True)
+    if type.value == "agents":
+        
+        await guideInstance.post_all_agents(guild=interaction.guild)
+        await interaction.followup.send("Les guides des agents ont bien été créés", ephemeral=True)
+        return
 
-
+    await interaction.followup.send("Les guides des maps ne sont pas encore disponibles.", ephemeral=True)
 
 @bot.tree.command(name="resolveserverdb", description="Résout les pbs de la base de donnée du serveur")
 @app_commands.guild_only()

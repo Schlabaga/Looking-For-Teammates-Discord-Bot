@@ -24,7 +24,7 @@ class SyncApi(): # PERMET DE SYNC LE BOT AVEC L'API VALORANT ET DE METTRE A JOUR
                 self.agentDict["displayName"] = agent["displayName"]
                 self.agentDict["description"] = agent["description"]
                 self.agentDict["role"] = agent["role"]
-                self.agentDict["charactrerTags"] = agent["characterTags"]
+                self.agentDict["characterTags"] = agent["characterTags"]
                 self.agentDict["abilities"] = agent["abilities"]
                 self.agentDict["background"] = agent["background"]
                 self.agentDict["fullPortrait"] = agent["fullPortrait"]
