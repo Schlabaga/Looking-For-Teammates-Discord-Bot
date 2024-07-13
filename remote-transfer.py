@@ -8,7 +8,7 @@ import dotenv
 dotenv.load_dotenv()
 
 
-server_ip = dotenv.get("SERVER_IP")
+server_ip = os.getenv("SERVER_IP")
 port = 22  # Default port for SSH
 username = 'admin'
 private_key_path = 'key.pem'
@@ -31,6 +31,7 @@ client.connect(server_ip, port=port, username=username, pkey=pkey)
 sftp = client.open_sftp()
 
 def upload_dir(local_path, remote_path, type):
+    local_path = local_path + "/" +type 
     try:
         sftp.chdir(remote_path)
     except IOError:
@@ -81,7 +82,7 @@ def upload_dir(local_path, remote_path, type):
     print("Transfer completed.")
 
 # Call the upload_dir function
-upload_dir('crosshairs/top', '/home/admin/crosshairs', "top")
+upload_dir('crosshairs/', '/home/admin/crosshairs', "top")
 
 # Close the SFTP and SSH connections
 sftp.close()

@@ -3,12 +3,15 @@ import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 import os
 from config import dbValorant
+import dotenv
+
+dotenv.load_dotenv()
 
 # Configuration       
 cloudinary.config( 
-    cloud_name = "dbcqyozi5", 
-    api_key = "815561692885965", 
-    api_secret = "fIPa3UNn796jwP_cxgqx5tWJSZ8", # Click 'View Credentials' below to copy your API secret
+    cloud_name = os.getenv("CLOUD_NAME"), 
+    api_key = os.getenv("API_KEY"), 
+    api_secret = os.getenv("API_SECRET"), 
     secure=True
 )
 
