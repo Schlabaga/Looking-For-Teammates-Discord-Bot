@@ -3,10 +3,14 @@ from config import TOKEN
 from discord import app_commands
 from discord.ext import commands
 from pymongo.collection import ReturnDocument
-from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed
+from dbClass import UserDbSetup, GetMainUser, Team, ServerDBSetup, addMemberTeamPanel, buildEmbed, detailCrosshairButton
 from dbClass import deleteTeamConfirmation, createTeamView, SelectUserToReport, supprInviteMate, contentSetup, EnSavoirPlusGuideButton
 import datetime
-
+import os
+from config import dbValorant
+from imgDefaultEdit import crop_image, supperpose_image_preview
+from imgEdit import supperpose_image
+import asyncio
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 embedsColor = "FF0000"
@@ -25,6 +29,7 @@ class Bot(commands.Bot):
         self.add_view(createTeamView())
         self.add_view(SelectUserToReport())
         self.add_view(EnSavoirPlusGuideButton())
+        self.add_view(detailCrosshairButton())
 
     async def on_ready(self):
 
@@ -167,7 +172,8 @@ async def findmate(interaction: discord.Interaction):
 
     userDB = UserDbSetup(user=interaction.user)
     if userDB.getRank():
-        embed = buildEmbed(title=f"Résultat de ta recherche ({userDB.getRank()})", content=userDB.findMate(guild=interaction.guild),guild = interaction.guild)
+        embed = buildEmbed(title=f"Résultat de ta recherche ({userDB.getRank()})", content=userDB.findMate(guild=interaction.guild),
+                           guild = interaction.guild, imageurl="https://media1.tenor.com/m/dG_tr_lmYHkAAAAC/looking-around.gif" if userDB.findMate(guild=interaction.guild) == "Aucun membre ne correspond à ta recherche, désolé!" else None)
     else:
         embed = buildEmbed(title=f"Rank non renseigné!", content="Communique ton rank en faisant la commande </setrank:1213576606162092052>",guild = interaction.guild)
         
@@ -635,6 +641,188 @@ async def setcreateteammodal(interaction:discord.Interaction, createteamchannel:
     await createteamchannel.send(view=createTeamView())
     await interaction.response.send_message(f"Le salon {createteamchannel.name} a bien été défini comme salon de création de teams!", ephemeral=True)
 
+
+
+
+
+@bot.tree.command(name="setupcrosshairs", description="Upload tous les crosshairs") 
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.choices(type =[
+    discord.app_commands.Choice(name="Top", value="top"),
+    discord.app_commands.Choice(name="User", value="user")
+])
+async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str],rolemembre: discord.Role, forum: discord.ForumChannel = None):
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)    
+    
+    guild = interaction.guild
+    isFade = False
+    
+    if not forum:
+        forum = await guild.create_forum(name=type.value.capitalize(), topic="Les crosshairs les plus utilisés", default_layout=discord.ForumLayoutType.gallery_view, 
+                                         default_sort_order=discord.ForumOrderType.creation_date)
+    
+    await forum.set_permissions(rolemembre,read_messages=True,send_messages=False, read_message_history =True)
+    # await forum.set_permissions(guild.default_role, view_channel=False, read_messages=False, connect=False, send_messages=False)
+    
+    
+    crosshairs = dbValorant.crosshairs.find({"type": type.value})
+    
+    listeCrosshairs = [e for e in crosshairs]
+
+    listeCrosshairs.reverse()
+    
+    for crosshair in listeCrosshairs:
+        
+        if crosshair["fade"]:
+            isFade = True
+        
+        embed = discord.Embed(title=f"{crosshair['name']}", color=discord.Color.red())
+        embed.set_image(url=crosshair["preview"])
+        
+        embed.add_field(name= "Copier le code", value=f"```{crosshair['code']}```", inline=True)
+        embed.add_field(name = "Fade", value="Oui" if isFade else "Non", inline=True)
+        embed.set_footer(text=f"ID: {crosshair['id']} - Trouve ton Mate")
+        
+        thread = await forum.create_thread(name=crosshair["name"], embed=embed , view= detailCrosshairButton(isFade=isFade))
+        
+        dbValorant.crosshairs.update_one({"id": crosshair["id"]}, {"$set": {"threadID": thread.message.id}})
+        await asyncio.sleep(1)
+    await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
+        
+    
+    
+"""
+
+@bot.tree.command(name="uploadcrosshairs", description="Upload tous les crosshairs") 
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.choices(type =[
+    discord.app_commands.Choice(name="Top", value="top"),   
+    discord.app_commands.Choice(name="User", value="user")
+])
+@app_commands.choices(special =[
+    discord.app_commands.Choice(name="True", value="true"),
+    discord.app_commands.Choice(name="False", value="false")
+])
+async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str], special:str = "false" ):
+    
+    channel  = None
+    
+    if type.value == "top":
+        channel =  bot.get_channel(1261324138551967866)
+        
+    if type.value == "user":
+        channel =  bot.get_channel(1261276743122292846)
+        
+    if special == "true":
+        channel = bot.get_channel(1261353131405742202)
+    
+
+    
+    dossier = f"crosshairs/{type.value}"
+    
+    if special == "true":
+            
+        # Iterate over all folders in the specified directory
+        
+        for root, dirs, files in os.walk(dossier):
+            crosshair_id = root.split("\\")[-1]
+            
+            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
+            try:
+                if crosshair_data["blank"].startswith("https://cdn."):
+                    print("Already uploaded")
+                    continue
+                else:
+                    pass
+            except:
+                print("Not uploaded")
+                
+            listeFiles = []
+            
+            for file_name in files:
+                
+                if file_name in ["blank.png" ,"fade.png"]:
+
+                    file_path = os.path.join(root, file_name)
+                    name = file_name.replace(".png", "")
+                    listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
+
+                    print(f"Image {file_name} uploaded")
+                
+            if listeFiles:
+                
+                dictAttachments = {}
+                messageStock = await channel.send(files=listeFiles)
+                            
+                for attachment in messageStock.attachments:
+                    dictAttachments[attachment.filename.replace(".png","")] = attachment.url
+                    
+                print(dictAttachments)
+                
+                dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)     
+            await asyncio.sleep(0.5)
+            
+    
+    if special == "false":
+        
+        # Iterate over all folders in the specified directory
+        for root, dirs, files in os.walk(dossier):
+            
+            
+            crosshair_id = root.split("\\")[-1]
+            print(crosshair_id)
+            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
+            
+            try:
+                if crosshair_data["preview"].startswith("https://cdn."):
+                    print("Already uploaded")
+                    continue
+                else:
+                    pass
+            except:
+                print("Not uploaded")
+                
+            
+
+            listeFiles = []
+            
+            for file_name in files:
+                
+                if file_name not in ["blank.png","metall.png" ,"fade.png" ,"grass.png"]:
+
+                    file_path = os.path.join(root, file_name)
+                    name = file_name.replace(".png", "")
+
+                    if file_name != "preview.png":
+                        listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
+                    
+                    else:
+                        listeFiles.insert(0,discord.File(file_path, filename=f"{name}.png"))
+
+                    print(f"Image {file_name} uploaded")
+                
+            if listeFiles:
+                
+                dictAttachments = {}
+                messageStock = await channel.send(files=listeFiles)
+                            
+                for attachment in messageStock.attachments:
+                    dictAttachments[attachment.filename.replace(".png","")] = attachment.url
+                    
+                print(dictAttachments)
+                dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)        
+            await asyncio.sleep(0.5)
+
+    return"""
+
+
+    
+ 
+
+# upload_image("user", "crosshairs/")
 
 
 bot.run(TOKEN)

@@ -18,6 +18,7 @@ dbBot = MongoClient.botconfig
 dbServer = MongoClient.serverconfig
 dbValorant = MongoClient.valorantconfig
 
+
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 
 

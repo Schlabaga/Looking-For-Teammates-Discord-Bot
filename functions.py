@@ -128,9 +128,9 @@ class SyncApi(): # PERMET DE SYNC LE BOT AVEC L'API VALORANT ET DE METTRE A JOUR
         
         
 
-valorantSync =  SyncApi()
+# valorantSync =  SyncApi()
 
-valorantSync.get_all_agents()
+# valorantSync.get_all_agents()
 # valorantSync.get_all_skins()
 # valorantSync.get_all_maps()
 # valorantSync.get_all_bundles()

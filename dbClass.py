@@ -635,10 +635,10 @@ class EnSavoirPlusGuideButton(discord.ui.View):
 
     def __init__(self):
         super().__init__(timeout=None)
-        self.cooldown = commands.CooldownMapping.from_cooldown(3,60, commands.BucketType.member)
+        self.cooldown = commands.CooldownMapping.from_cooldown(3,15, commands.BucketType.member)
         self.db = dbValorant
 
-    @discord.ui.button(label="En savoir plus", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:enSavoirPlusButton" )
+    @discord.ui.button(label=f"Capacités", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:enSavoirPlusButton" )
     async def enSavoirPlus(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         bucket = self.cooldown.get_bucket(interaction.message)
@@ -655,7 +655,7 @@ class EnSavoirPlusGuideButton(discord.ui.View):
             agent = self.db.agents.find_one({"channelID":message.channel.id})
             agentID = agent["uuid"]
             
-            abilites = await guidePlus.get_second_page_maps(message=interaction.message, interaction=interaction, agentID=agentID)
+            abilites = await guidePlus.get_second_page_maps(agentID=agentID)
             
             await interaction.response.send_message(embed=abilites, ephemeral=True)
             
@@ -695,6 +695,42 @@ class contentSetup:
             else:
                 id = agent["uuid"]
                 base = self.db.agents.update_one({"uuid":id}, {"$set":{"gif":gif}}, upsert=True)
+
+    def add_video(self):
+        
+        for agent in self.get_all_agents():
+            
+            agentName = agent["displayName"]
+            video = input(f"Entrez de la vidéo guide pour {agentName} :")
+            
+            if video== "N":
+                pass
+            
+            if video == "stop":
+                break 
+            
+            else:
+                id = agent["uuid"]
+                base = self.db.agents.update_one({"uuid":id}, {"$set":{"video":video}}, upsert=True)
+    
+    def add_lineup(self):
+        
+        for agent in self.get_all_agents():
+            
+            agentName = agent["displayName"]
+            video = input(f"Entrez de la vidéo guide pour {agentName} :")
+            
+            if video== "N":
+                video = None
+            
+            if video == "stop":
+                break 
+            
+            
+            
+            else:
+                id = agent["uuid"]
+                base = self.db.agents.update_one({"uuid":id}, {"$set":{"lineup":video}}, upsert=True)
     
 
     async def post_all_agents(self, guild:discord.Guild):
@@ -737,9 +773,10 @@ class contentSetup:
             
         
         
-    async def get_second_page_maps(self, message:discord.Message, interaction:discord.Interaction, agentID):
-        
-        embed = discord.Embed(title="En savoir plus", color=embedsColor)
+    async def get_second_page_maps(self, agentID):
+        agent = self.db.agents.find_one({"uuid":agentID})
+        agentName = agent["displayName"]
+        embed = discord.Embed(title=f"En savoir plus - {agentName}", color=embedsColor)
         agent = self.db.agents.find_one({"uuid":agentID})
         
         if "abilities" in agent.keys():
@@ -756,7 +793,8 @@ class contentSetup:
         
         return embed
 
-    
+# contentSetup().add_lineup()
+
 
 
 class UserDbSetup:
@@ -1528,3 +1566,85 @@ class Team:
                 if UserDbSetup(user=user["userID"]):
                     self.makeRandomChef(user["userID"])
 
+
+
+
+class detailCrosshairButton(discord.ui.View):
+
+    def __init__(self, isFade = False):
+        super().__init__(timeout=None)
+        self.cooldown = commands.CooldownMapping.from_cooldown(3,5, commands.BucketType.member)
+        self.db = dbValorant
+        self.isFade = isFade
+        
+
+
+    @discord.ui.button(label=f"Détails", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:detailCrosshair" )
+    async def detail_crosshair(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        bucket = self.cooldown.get_bucket(interaction.message)
+        retry = bucket.update_rate_limit()
+        view = self
+        message = interaction.message
+        
+        listeEmbeds = []
+
+        if retry:
+            await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
+
+        else:
+            listeEmbeds = []
+            crosshair = self.db.crosshairs.find_one({"threadID":interaction.message.id})
+            
+            for field in crosshair:
+    
+                
+                if field in ["default", "green", "blue", "blaugelb", "orange", "sky", "yellow" ]:
+                    print(field)
+                    
+                    embed = discord.Embed()
+                    embed.set_image(url=crosshair[field])
+                    listeEmbeds.append(embed)
+            
+            
+            await interaction.response.send_message(embeds=listeEmbeds, ephemeral=True)
+                
+            return
+    
+    @discord.ui.button(label=f"Afficher le fade", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:fadeCrosshair" )
+    async def affiche_fade(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        bucket = self.cooldown.get_bucket(interaction.message)
+        retry = bucket.update_rate_limit()
+        view = self
+        message = interaction.message
+        
+
+        if retry:
+            await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
+
+        else:
+
+            crosshair = self.db.crosshairs.find_one({"threadID":interaction.message.id})
+
+            if crosshair == None:
+                return
+            
+            if crosshair["fade"]:
+    
+                embed = discord.Embed()
+                embed.set_image(url=crosshair["fadebg"])
+
+                
+                await interaction.response.send_message(embed = embed, ephemeral=True)
+                return
+            
+            else: 
+                self.children[1].disabled = True
+                
+                await interaction.response.send_message(content = "Ce crosshair n'a pas de fade effect." , ephemeral=True)
+                self.children[1].disabled = True
+                await interaction.message.edit(view=self)
+            
+
+    
