@@ -652,46 +652,76 @@ async def setcreateteammodal(interaction:discord.Interaction, createteamchannel:
     discord.app_commands.Choice(name="Top", value="top"),
     discord.app_commands.Choice(name="User", value="user")
 ])
-async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str],rolemembre: discord.Role, forum: discord.ForumChannel = None):
-    
-    await interaction.response.defer(thinking=True, ephemeral=True)    
+async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str], rolemembre: discord.Role, forum: discord.ForumChannel = None):
+    await interaction.response.defer(thinking=True, ephemeral=True)
     
     guild = interaction.guild
     isFade = False
+    dictLinksFiles = {}
+    attachment = ""
+    # reactEmoji = bot.get_emoji("<:utilityValider:1086310104917352559>")
     
     if not forum:
-        forum = await guild.create_forum(name=type.value.capitalize(), topic="Les crosshairs les plus utilisés", default_layout=discord.ForumLayoutType.gallery_view, 
+        forum = await guild.create_forum(name=f"🎯・{type.value.capitalize()}", topic="Les crosshairs les plus utilisés", default_layout=discord.ForumLayoutType.gallery_view,
                                          default_sort_order=discord.ForumOrderType.creation_date)
-    
-    await forum.set_permissions(rolemembre,read_messages=True,send_messages=False, read_message_history =True)
-    # await forum.set_permissions(guild.default_role, view_channel=False, read_messages=False, connect=False, send_messages=False)
-    
-    
-    crosshairs = dbValorant.crosshairs.find({"type": type.value})
-    
-    listeCrosshairs = [e for e in crosshairs]
 
-    listeCrosshairs.reverse()
+    await forum.set_permissions(rolemembre, read_messages=True, send_messages=False, read_message_history=True)
+    await forum.set_permissions(guild.default_role, view_channel=False, read_messages=False, connect=False, send_messages=False)
+    tagPro = await forum.create_tag(name="Pro",emoji="🤖")
     
-    for crosshair in listeCrosshairs:
+
+    try:
+        crosshairs = dbValorant.crosshairs.find({"type": type.value})
+        listeCrosshairs = list(crosshairs)
+        [print(crosshair["name"]) for crosshair in listeCrosshairs]
         
-        if crosshair["fade"]:
-            isFade = True
+        listeALenvers = []
         
-        embed = discord.Embed(title=f"{crosshair['name']}", color=discord.Color.red())
-        embed.set_image(url=crosshair["preview"])
-        
-        embed.add_field(name= "Copier le code", value=f"```{crosshair['code']}```", inline=True)
-        embed.add_field(name = "Fade", value="Oui" if isFade else "Non", inline=True)
-        embed.set_footer(text=f"ID: {crosshair['id']} - Trouve ton Mate")
-        
-        thread = await forum.create_thread(name=crosshair["name"], embed=embed , view= detailCrosshairButton(isFade=isFade))
-        
-        dbValorant.crosshairs.update_one({"id": crosshair["id"]}, {"$set": {"threadID": thread.message.id}})
-        await asyncio.sleep(1)
-    await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
-        
-    
+        for i in listeCrosshairs:
+            listeALenvers.insert(0,i)
+
+        for crosshair in listeALenvers:
+            path = f"crosshairs/{type.value}/{crosshair['id']}"
+            listeFiles = []
+            dictLinksFiles.clear()
+
+            try:
+                for entry in os.listdir(path):
+                    if entry == "preview.png":
+                        previewPath = f"{path}/{entry}"
+                        attachment = discord.File(previewPath, filename="preview.png")
+
+            except FileNotFoundError:
+                print(f"Fichier non trouvé dans {path}.")
+                continue
+
+            if crosshair["fade"] == True:
+                isFade = True
+
+            embed = discord.Embed(title=f"{crosshair['name']}", color=discord.Color.dark_embed())
+            embed.set_image(url="attachment://preview.png")
+            embed.add_field(name="📋 Copier le code", value=f"```{crosshair['code']}```", inline=True)
+            embed.set_footer(text=f"{crosshair['id']}")
+
+            # Crée le thread sur le forum avec les fichiers et l'embed
+            thread = await forum.create_thread(name=crosshair["name"], file=attachment, embed=embed,view=detailCrosshairButton(isFade=isFade),
+                                               applied_tags=[tagPro])
+
+
+            # Met à jour la base de données avec les IDs des messages et les liens des fichiers
+            dbValorant.crosshairs.update_one(
+                {"id": crosshair["id"]},
+                {"$set": {"threadID": thread.message.id, "preview": thread.message.embeds[0].image.url}},
+                upsert=True
+            )
+
+            await asyncio.sleep(3)  
+
+        await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
+
+    except Exception as e:
+        print(f"Une erreur est survenue : {e}")
+        await interaction.followup.send("Une erreur est survenue lors de l'upload des crosshairs", ephemeral=True)
     
 """
 

@@ -4,6 +4,7 @@ import datetime as dt, locale
 from discord.ext import commands
 from discord import ui
 import random
+import os
 embedsColor = discord.Colour.red()
 
 
@@ -1579,39 +1580,46 @@ class detailCrosshairButton(discord.ui.View):
         
 
 
-    @discord.ui.button(label=f"Détails", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:detailCrosshair" )
+    @discord.ui.button(label=f"Détails", style= discord.ButtonStyle.blurple,emoji= "🧩",custom_id= "persistent_view:detailCrosshair" )
     async def detail_crosshair(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         bucket = self.cooldown.get_bucket(interaction.message)
         retry = bucket.update_rate_limit()
         view = self
         message = interaction.message
-        
-        listeEmbeds = []
+        listeFiles = []
+        filePath = ""
 
         if retry:
             await interaction.response.send_message(f"Tu es en **cooldown**, rééssaye dans `{round(retry,1)} secondes`", ephemeral=True)
 
         else:
-            listeEmbeds = []
+            
             crosshair = self.db.crosshairs.find_one({"threadID":interaction.message.id})
             
-            for field in crosshair:
-    
+            try:
+                path = f"crosshairs/{crosshair['type']}/{crosshair['id']}"
                 
-                if field in ["default", "green", "blue", "blaugelb", "orange", "sky", "yellow" ]:
-                    print(field)
+                for entry in os.listdir(path):
+                    if entry in ["default.png", "green.png", "blue.png", "blaugelb.png", "orange.png", "sky.png", "yellow.png","grass.png", "metall.png"]:
+                        filePath = f"{path}/{entry}"
+                        attachment = discord.File(fp=filePath, filename=entry)
+                        listeFiles.append(attachment)
                     
-                    embed = discord.Embed()
-                    embed.set_image(url=crosshair[field])
-                    listeEmbeds.append(embed)
+                
+            except Exception as e:
+                print(f"Error {str(e)}")
+                pass
             
+            except FileNotFoundError as e:
+                print("File not found")
+                pass
             
-            await interaction.response.send_message(embeds=listeEmbeds, ephemeral=True)
+            await interaction.response.send_message(files = listeFiles, ephemeral=True)
                 
             return
     
-    @discord.ui.button(label=f"Afficher le fade", style= discord.ButtonStyle.green,emoji= "🚀",custom_id= "persistent_view:fadeCrosshair" )
+    @discord.ui.button(label=f"Afficher le fade", style= discord.ButtonStyle.blurple,emoji= "🚀",custom_id= "persistent_view:fadeCrosshair" )
     async def affiche_fade(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         bucket = self.cooldown.get_bucket(interaction.message)

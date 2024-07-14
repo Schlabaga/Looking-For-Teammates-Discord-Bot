@@ -82,7 +82,7 @@ def upload_dir(local_path, remote_path, type):
     print("Transfer completed.")
 
 # Call the upload_dir function
-upload_dir('crosshairs/', '/home/admin/crosshairs', "top")
+upload_dir('crosshairs/', '/home/admin/Looking-For-Teammates-Discord-Bot/crosshairs', "top")
 
 # Close the SFTP and SSH connections
 sftp.close()
