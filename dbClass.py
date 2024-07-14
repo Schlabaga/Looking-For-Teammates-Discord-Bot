@@ -1574,7 +1574,7 @@ class detailCrosshairButton(discord.ui.View):
 
     def __init__(self, isFade = False):
         super().__init__(timeout=None)
-        self.cooldown = commands.CooldownMapping.from_cooldown(3,5, commands.BucketType.member)
+        self.cooldown = commands.CooldownMapping.from_cooldown(4,60, commands.BucketType.member)
         self.db = dbValorant
         self.isFade = isFade
         
