@@ -32,6 +32,8 @@ sftp = client.open_sftp()
 
 def upload_dir(local_path, remote_path, type):
     local_path = local_path + "/" +type 
+    totalDirs = 5308
+    current = 0
     try:
         sftp.chdir(remote_path)
     except IOError:
@@ -46,10 +48,13 @@ def upload_dir(local_path, remote_path, type):
         print(f"Remote directory {type_path} created.")
     except IOError as e:
         print(f"Error creating directory {type_path}: {e}")
+    
 
     for root, dirs, files in os.walk(local_path):
+        current +=1
         crosshair_id = os.path.basename(root)
         crosshair_remote_path = f"{type_path}/{crosshair_id}"
+        print(f"Transferring crosshair {crosshair_id} ({current}/{totalDirs})")
 
         try:
             sftp.stat(crosshair_remote_path)
@@ -60,7 +65,7 @@ def upload_dir(local_path, remote_path, type):
         
         try:
             sftp.mkdir(crosshair_remote_path)
-            print(f"Created directory {crosshair_remote_path}")
+            # print(f"Created directory {crosshair_remote_path}")
         except IOError as e:
             print(f"Error creating directory {crosshair_remote_path}: {e}")
             continue
@@ -69,7 +74,7 @@ def upload_dir(local_path, remote_path, type):
             local_file_path = os.path.join(root, file)
             remote_file_path = f"{crosshair_remote_path}/{file}"
             sftp.put(local_file_path, remote_file_path)
-            print(f"Transferring {local_file_path} to {remote_file_path}")
+            # print(f"Transferring {local_file_path} to {remote_file_path}")
             dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": {"uploaded": True, "remote_path": crosshair_remote_path}})
 
     nested_top_path = f"{type_path}/{type}"
@@ -82,7 +87,7 @@ def upload_dir(local_path, remote_path, type):
     print("Transfer completed.")
 
 # Call the upload_dir function
-upload_dir('crosshairs/', '/home/admin/Looking-For-Teammates-Discord-Bot/crosshairs', "top")
+upload_dir('crosshairs/', '/home/admin/Looking-For-Teammates-Discord-Bot/crosshairs', "user")
 
 # Close the SFTP and SSH connections
 sftp.close()
