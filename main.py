@@ -698,7 +698,7 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
             if crosshair["fade"] == True:
                 isFade = True
 
-            embed = discord.Embed(title=f"{crosshair['name']}", color=discord.Color.dark_embed())
+            embed = discord.Embed(title=f"{crosshair['name']}", color=discord.Color.red())
             embed.set_image(url="attachment://preview.png")
             embed.add_field(name="📋 Copier le code", value=f"```{crosshair['code']}```", inline=True)
             embed.set_footer(text=f"{crosshair['id']}")
@@ -711,7 +711,9 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
             # Met à jour la base de données avec les IDs des messages et les liens des fichiers
             dbValorant.crosshairs.update_one(
                 {"id": crosshair["id"]},
-                {"$set": {"threadID": thread.message.id, "preview": thread.message.embeds[0].image.url}},
+                {"$set": {"threadID": thread.message.id,
+                          "preview": thread.message.embeds[0].image.url,
+                          "uploaded": True}},
                 upsert=True
             )
 
