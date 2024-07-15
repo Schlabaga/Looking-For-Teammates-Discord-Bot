@@ -717,7 +717,7 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
                 upsert=True
             )
 
-            await asyncio.sleep(3)  
+            await asyncio.sleep(5)  
 
         await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
 
