@@ -713,7 +713,8 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
                 {"id": crosshair["id"]},
                 {"$set": {"threadID": thread.message.id,
                           "preview": thread.message.embeds[0].image.url,
-                          "uploaded": True}},
+                          "uploaded": True,
+                          "jump_url": thread.jump_url}},
                 upsert=True
             )
 
