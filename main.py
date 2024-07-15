@@ -726,7 +726,7 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
         print(f"Une erreur est survenue : {e}")
         await interaction.followup.send("Une erreur est survenue lors de l'upload des crosshairs", ephemeral=True)
     
-"""
+
 
 @bot.tree.command(name="uploadcrosshairs", description="Upload tous les crosshairs") 
 @app_commands.guild_only()
@@ -849,7 +849,7 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
                 dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)        
             await asyncio.sleep(0.5)
 
-    return"""
+    return
 
 
     
