@@ -768,7 +768,7 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
             
             crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
             try:
-                if crosshair_data["fadebg"].startswith("https://cdn."):
+                if crosshair_data["blank"].startswith("https://cdn."):
                     print("Already uploaded")
                     continue
                 else:
