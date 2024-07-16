@@ -706,6 +706,8 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
             # Crée le thread sur le forum avec les fichiers et l'embed
             thread = await forum.create_thread(name=crosshair["name"], file=attachment, embed=embed,view=detailCrosshairButton(isFade=isFade),
                                                applied_tags=[tagPro])
+            
+            previewImage = thread.message.embeds[0].image.url
 
 
             # Met à jour la base de données avec les IDs des messages et les liens des fichiers
@@ -714,11 +716,12 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
                 {"$set": {"threadID": thread.message.id,
                           "preview": thread.message.embeds[0].image.url,
                           "uploaded": True,
-                          "jump_url": thread.message.jump_url}},
+                          "jump_url": thread.message.jump_url,
+                          "image_url": previewImage}},
                 upsert=True
             )
 
-            await asyncio.sleep(5)  
+            await asyncio.sleep(4.5)  
 
         await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
 
@@ -765,7 +768,7 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
             
             crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
             try:
-                if crosshair_data["blank"].startswith("https://cdn."):
+                if crosshair_data["fadebg"].startswith("https://cdn."):
                     print("Already uploaded")
                     continue
                 else:
@@ -776,14 +779,14 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
             listeFiles = []
             
             for file_name in files:
-                
-                if file_name in ["blank.png" ,"fade.png"]:
+                if file_name in ["blank.png" ,"fade.png", "fadebg.png"]:
 
                     file_path = os.path.join(root, file_name)
                     name = file_name.replace(".png", "")
                     listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
 
                     print(f"Image {file_name} uploaded")
+                
                 
             if listeFiles:
                 
