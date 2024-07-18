@@ -90,7 +90,7 @@ def upload_fade(type,dossier):
             name = file_name.replace(".png", "")
             
             upload_result = cloudinary.uploader.upload(file_path,
-                                                    public_id=f"{crosshair_id}_{name}",
+                                                    public_id=f"{crosshair_id}",
                                                     quality="auto",
                                                     tags = [type])
             
