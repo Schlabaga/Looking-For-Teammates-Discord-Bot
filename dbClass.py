@@ -1574,7 +1574,7 @@ class detailCrosshairButton(discord.ui.View):
 
     def __init__(self, isFade = False):
         super().__init__(timeout=None)
-        self.cooldown = commands.CooldownMapping.from_cooldown(4,60, commands.BucketType.member)
+        self.cooldown = commands.CooldownMapping.from_cooldown(4,20, commands.BucketType.member)
         self.db = dbValorant
         self.isFade = isFade
         
@@ -1641,7 +1641,7 @@ class detailCrosshairButton(discord.ui.View):
             if crosshair["fade"]:
     
                 embed = discord.Embed()
-                embed.set_image(url=crosshair["fadebg"])
+                embed.set_image(url=crosshair["fadeBgURL"])
 
                 
                 await interaction.response.send_message(embed = embed, ephemeral=True)

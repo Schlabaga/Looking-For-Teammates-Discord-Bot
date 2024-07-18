@@ -18,7 +18,6 @@ cloudinary.config(
 
 
 
-
 def upload_image(type,dossier):
     
     dossier = f"crosshairs/{type}"
@@ -98,8 +97,8 @@ def upload_fade(type,dossier):
             
             print(upload_result["url"])
             
-            print(f"Image {file_name} uploaded")
+            print(f"Image {file_name} uploaded, {compteur}")
 
     return 
 
-upload_fade("user", "crosshairs/")
+upload_fade("top", "crosshairs/")
