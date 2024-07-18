@@ -755,7 +755,8 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
     if special == "true":
         channel = bot.get_channel(1261353131405742202)
     
-
+    crosshairs_count = dbValorant.crosshairs.count_documents({"isSpecialUploaded": {"$exists": True}})
+    print(f"Number of crosshairs with isSpecialUploaded field: {crosshairs_count}")
     
     dossier = f"crosshairs/{type.value}"
     
@@ -766,8 +767,16 @@ async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_
         for root, dirs, files in os.walk(dossier):
             crosshair_id = root.split("\\")[-1]
             
-            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id, "isSpecialUploaded": {"$exists": False}})
+            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
+            
             try:
+                try:
+                    if crosshair_data["isSpecialUploaded"]:
+                        print("Already uploaded")
+                        continue
+                except KeyError:
+                    pass
+                
                 if crosshair_data["blank"].startswith("https://cdn."):
                     print("Already uploaded")
                     dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set":{"isSpecialUploaded":True}}, upsert=True)

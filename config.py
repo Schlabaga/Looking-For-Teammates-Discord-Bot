@@ -17,7 +17,9 @@ dbUser = MongoClient.userconfig
 dbBot = MongoClient.botconfig
 dbServer = MongoClient.serverconfig
 dbValorant = MongoClient.valorantconfig
-
+cloudinary_secret = os.getenv('API_SECRET')
+cloudinary_key = os.getenv('API_KEY')
+cloudinary_name = os.getenv('CLOUD_NAME')
 
 bot = commands.Bot(command_prefix="+", intents= discord.Intents.all())
 

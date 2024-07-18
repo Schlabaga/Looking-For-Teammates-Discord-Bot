@@ -1,11 +1,7 @@
 import os
 from imgDefaultEdit import supperpose_image_preview
 from imgEdit import supperpose_image
-from config import dbValorant   
-
-
-
-
+from config import dbValorant
 
 
 def preview(type):
