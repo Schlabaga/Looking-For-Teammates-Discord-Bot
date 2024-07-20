@@ -705,9 +705,7 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
 
             # Crée le thread sur le forum avec les fichiers et l'embed
             thread = await forum.create_thread(name=crosshair["name"], file=attachment, embed=embed,view=detailCrosshairButton(isFade=isFade),
-                                               applied_tags=[tagPro])
-            
-            previewImage = thread.message.embeds[0].image.url
+                                               applied_tags=[tagPro], auto_archive_duration=10)
 
 
             # Met à jour la base de données avec les IDs des messages et les liens des fichiers
@@ -717,11 +715,11 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
                           "preview": thread.message.embeds[0].image.url,
                           "uploaded": True,
                           "jump_url": thread.message.jump_url,
-                          "image_url": previewImage}},
+                          }},
                 upsert=True
             )
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)  
 
         await interaction.followup.send("Les crosshairs ont bien été uploadés", ephemeral=True)
 
@@ -731,138 +729,128 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
     
 
 
-# @bot.tree.command(name="uploadcrosshairs", description="Upload tous les crosshairs") 
-# @app_commands.guild_only()
-# @app_commands.checks.has_permissions(administrator=True)
-# @app_commands.choices(type =[
-#     discord.app_commands.Choice(name="Top", value="top"),   
-#     discord.app_commands.Choice(name="User", value="user")
-# ])
-# @app_commands.choices(special =[
-#     discord.app_commands.Choice(name="True", value="true"),
-#     discord.app_commands.Choice(name="False", value="false")
-# ])
-# async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str], special:str = "false" ):
+@bot.tree.command(name="uploadcrosshairs", description="Upload tous les crosshairs") 
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.choices(type =[
+    discord.app_commands.Choice(name="Top", value="top"),   
+    discord.app_commands.Choice(name="User", value="user")
+])
+@app_commands.choices(special =[
+    discord.app_commands.Choice(name="True", value="true"),
+    discord.app_commands.Choice(name="False", value="false")
+])
+async def upload_crosshairs(interaction: discord.Interaction, type: discord.app_commands.Choice[str], special:str = "false" ):
     
-#     channel  = None
+    channel  = None
     
-#     if type.value == "top":
-#         channel =  bot.get_channel(1261324138551967866)
+    if type.value == "top":
+        channel =  bot.get_channel(1261324138551967866)
         
-#     if type.value == "user":
-#         channel =  bot.get_channel(1261276743122292846)
+    if type.value == "user":
+        channel =  bot.get_channel(1261276743122292846)
         
-#     if special == "true":
-#         channel = bot.get_channel(1261353131405742202)
+    if special == "true":
+        channel = bot.get_channel(1261353131405742202)
     
-#     crosshairs_count = dbValorant.crosshairs.count_documents({"isSpecialUploaded": {"$exists": True}})
-#     print(f"Number of crosshairs with isSpecialUploaded field: {crosshairs_count}")
-    
-#     dossier = f"crosshairs/{type.value}"
-    
-#     if special == "true":
-            
-#         # Iterate over all folders in the specified directory
-        
-#         for root, dirs, files in os.walk(dossier):
-#             crosshair_id = root.split("\\")[-1]
-            
-#             crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
-            
-#             try:
-#                 try:
-#                     if crosshair_data["isSpecialUploaded"]:
-#                         print("Already uploaded")
-#                         continue
-#                 except KeyError:
-#                     pass
-                
-#                 if crosshair_data["blank"].startswith("https://cdn."):
-#                     print("Already uploaded")
-#                     dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set":{"isSpecialUploaded":True}}, upsert=True)
-#                     continue
-#                 else:
-#                     pass
-#             except:
-#                 print("Not uploaded")
-                
-#             listeFiles = []
-            
-#             for file_name in files:
-#                 if file_name in ["blank.png" ,"fade.png", "fadebg.png"]:
 
-#                     file_path = os.path.join(root, file_name)
-#                     name = file_name.replace(".png", "")
-#                     listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
+    
+    dossier = f"crosshairs/{type.value}"
+    
+    if special == "true":
+            
+        # Iterate over all folders in the specified directory
+        
+        for root, dirs, files in os.walk(dossier):
+            crosshair_id = root.split("\\")[-1]
+            
+            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
+            try:
+                if crosshair_data["blank"].startswith("https://cdn."):
+                    print("Already uploaded")
+                    continue
+                else:
+                    pass
+            except:
+                print("Not uploaded")
+                
+            listeFiles = []
+            
+            for file_name in files:
+                
+                if file_name in ["blank.png" ,"fade.png"]:
 
-#                     print(f"Image {file_name} uploaded")
+                    file_path = os.path.join(root, file_name)
+                    name = file_name.replace(".png", "")
+                    listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
+
+                    print(f"Image {file_name} uploaded")
                 
+            if listeFiles:
                 
-#             if listeFiles:
-                
-#                 dictAttachments = {}
-#                 messageStock = await channel.send(files=listeFiles)
+                dictAttachments = {}
+                messageStock = await channel.send(files=listeFiles)
                             
-#                 for attachment in messageStock.attachments:
-#                     dictAttachments[attachment.filename.replace(".png","")] = attachment.url
+                for attachment in messageStock.attachments:
+                    dictAttachments[attachment.filename.replace(".png","")] = attachment.url
                     
-#                 print(dictAttachments)
+                print(dictAttachments)
                 
-#                 dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)     
-#             await asyncio.sleep(0.5)
+                dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)     
+            await asyncio.sleep(0.5)
             
     
-#     if special == "false":
+    if special == "false":
         
-#         # Iterate over all folders in the specified directory
-#         for root, dirs, files in os.walk(dossier):
+        # Iterate over all folders in the specified directory
+        for root, dirs, files in os.walk(dossier):
             
             
-#             crosshair_id = root.split("\\")[-1]
-#             print(crosshair_id)
-#             crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
+            crosshair_id = root.split("\\")[-1]
+            print(crosshair_id)
+            crosshair_data = dbValorant.crosshairs.find_one({"id": crosshair_id})
             
-#             try:
-#                 if crosshair_data["preview"].startswith("https://cdn."):
-#                     print("Already uploaded")
-#                     continue
-#                 else:
-#                     pass
-#             except:
-#                 print("Not uploaded")
+            try:
+                if crosshair_data["preview"].startswith("https://cdn."):
+                    print("Already uploaded")
+                    continue
+                else:
+                    pass
+            except:
+                print("Not uploaded")
                 
             
 
-#             listeFiles = []
+            listeFiles = []
             
-#             for file_name in files:
+            for file_name in files:
                 
-#                 if file_name not in ["blank.png","metall.png" ,"fade.png" ,"grass.png"]:
+                if file_name not in ["blank.png","metall.png" ,"fade.png" ,"grass.png"]:
 
-#                     file_path = os.path.join(root, file_name)
-#                     name = file_name.replace(".png", "")
+                    file_path = os.path.join(root, file_name)
+                    name = file_name.replace(".png", "")
 
-#                     if file_name != "preview.png":
-#                         listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
+                    if file_name != "preview.png":
+                        listeFiles.append(discord.File(file_path, filename=f"{name}.png"))
                     
-#                     else:
-#                         listeFiles.insert(0,discord.File(file_path, filename=f"{name}.png"))
+                    else:
+                        listeFiles.insert(0,discord.File(file_path, filename=f"{name}.png"))
 
-#                     print(f"Image {file_name} uploaded")
+                    print(f"Image {file_name} uploaded")
                 
-#             if listeFiles:
+            if listeFiles:
                 
-#                 dictAttachments = {}
-#                 messageStock = await channel.send(files=listeFiles)
+                dictAttachments = {}
+                messageStock = await channel.send(files=listeFiles)
                             
-#                 for attachment in messageStock.attachments:
-#                     dictAttachments[attachment.filename.replace(".png","")] = attachment.url
+                for attachment in messageStock.attachments:
+                    dictAttachments[attachment.filename.replace(".png","")] = attachment.url
                     
-#                 print(dictAttachments)
-#                 dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)        
-#             await asyncio.sleep(0.5)
+                print(dictAttachments)
+                dbValorant.crosshairs.update_one({"id": crosshair_id}, {"$set": dictAttachments}, upsert=True)        
+            await asyncio.sleep(1.5)
 
-#     return
+    return
 
 
     
