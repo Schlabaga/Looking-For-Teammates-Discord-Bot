@@ -705,7 +705,7 @@ async def setup_crosshairs(interaction: discord.Interaction, type: discord.app_c
 
             # Crée le thread sur le forum avec les fichiers et l'embed
             thread = await forum.create_thread(name=crosshair["name"], file=attachment, embed=embed,view=detailCrosshairButton(isFade=isFade),
-                                               applied_tags=[tagPro], auto_archive_duration=10)
+                                               applied_tags=[tagPro], auto_archive_duration=60)
 
 
             # Met à jour la base de données avec les IDs des messages et les liens des fichiers
